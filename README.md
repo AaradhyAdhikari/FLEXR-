@@ -15,6 +15,7 @@ Flexr is a personal fitness companion that brings together the three things most
 - **Day** — tick meals/foods from your plan, add extras, log water, steps, weight and gym; live macro bars, daily score and "what to fix"
 - **Trends** — 7/14/30-day charts (score, weight, protein, calories, carbs, fat, water, steps), insights and history
 - **Plan** — per-user diet plans, targets, meals and an editable food list
+- **Food search** — 865 Indian dishes (INDB) with per-person servings, plus live USDA search through the server; add any result to today or to your food list
 
 Without Supabase keys the app runs in **local mode** (browser-only storage, simple name/age/email sign-in) so it still works for quick local testing.
 
@@ -58,6 +59,12 @@ Open http://localhost:3000.
 - [ ] Exercise library with form cues / common mistakes
 - [x] Step count tracking (manual entry)
 - [x] Daily dashboard tying it all together
-- [ ] Food database import (INDB, USDA, free-exercise-db)
-- [ ] Food search + barcode scanning
+- [x] Food search: INDB Indian dishes + live USDA
+- [ ] Exercise library (free-exercise-db)
+- [ ] Barcode scanning (Open Food Facts)
 - [ ] Workout logging (sets/reps/weight)
+
+## Data credits
+
+- **Indian Nutrient Databank (INDB)** — Jaacks et al., [github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-](https://github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-), CC BY 4.0. Built into `public/data/indb.json` by `scripts/build_indb.py`, which leaves out 115 dishes with implausible fat (fried recipes that count all frying oil) and 34 whose calories don't match their macros.
+- **USDA FoodData Central** — public domain (CC0), searched live via `/api/foods/usda` (Foundation and SR Legacy foods).

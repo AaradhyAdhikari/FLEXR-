@@ -17,6 +17,9 @@ export type Food = {
   p: number; // protein g
   c: number; // carbs g
   f: number; // fat g
+  source?: "INDB" | "USDA" | "Mine"; // where the numbers came from, if added from a database
+  sourceId?: string; // e.g. "indb:ASC152"
+  gramsPerUnit?: number; // e.g. 1 bowl = 296 g
 };
 
 export type MealItem = {

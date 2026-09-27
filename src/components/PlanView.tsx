@@ -6,6 +6,8 @@ import { macFor, mealTotals, planTotals } from "@/lib/macros";
 import { Store } from "@/lib/storage";
 import { Food, Plan, Targets } from "@/lib/types";
 import { NumInput } from "./ui";
+import FoodPicker from "./FoodPicker";
+import { catalogToFood, CatalogFood } from "@/lib/foodSearch";
 
 type Props = {
   store: Store;
@@ -36,6 +38,7 @@ export default function PlanView({ store, update }: Props) {
   const [selId, setSelId] = useState(store.activePlanId);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [foodMsg, setFoodMsg] = useState("");
+  const [addedMsg, setAddedMsg] = useState("");
   const plan = store.plans[selId] || store.plans[store.activePlanId];
   const foods = Object.values(store.foods).sort((a, b) => a.name.localeCompare(b.name));
   const pt = planTotals(plan, store.foods);
@@ -100,6 +103,19 @@ export default function PlanView({ store, update }: Props) {
       delete next[id];
       return { ...s, foods: next };
     });
+  }
+
+  function addFromDatabase(item: CatalogFood) {
+    const existing = Object.values(store.foods).find((f) => f.sourceId === item.id);
+    if (existing) {
+      setFoodMsg("");
+      setAddedMsg(`${existing.name} is already in your food list.`);
+      return;
+    }
+    const food = catalogToFood(item, "food-" + uid());
+    update((s) => ({ ...s, foods: { ...s.foods, [food.id]: food } }));
+    setFoodMsg("");
+    setAddedMsg(`Added ${food.name} (per ${fmt(food.per)} ${unitLabel(food.unit, food.per)}). You can now use it in any meal.`);
   }
 
   function addFood() {
@@ -251,6 +267,11 @@ export default function PlanView({ store, update }: Props) {
 
       <div className="panel mt-4">
         <h2 className="h2">Food list</h2>
+        <div className="mb-4">
+          <label className="label">Add from food database</label>
+          <FoodPicker mode="list" myFoods={store.foods} onPick={addFromDatabase} placeholder="Search 860+ Indian dishes, or USDA foods" />
+          {addedMsg && <p className="text-[13px] mt-2 mb-0" style={{ color: "var(--good)" }}>{addedMsg}</p>}
+        </div>
         <p className="hint">
           Macros per amount. Eggs, bananas and rotis are per 1 piece; rice, dal and chicken per 100 g; milk per 100 ml. “Step” is how much the +/− buttons change. Check packaged foods against their labels.
         </p>
@@ -280,6 +301,12 @@ export default function PlanView({ store, update }: Props) {
         </div>
         {foodMsg && <div className="rounded-[9px] px-3 py-2 mt-2.5 text-sm font-semibold" style={{ background: "var(--bad-bg)", color: "var(--bad)" }}>{foodMsg}</div>}
         <div className="flex gap-2 mt-3.5"><button className="btn" onClick={addFood}>Add food</button></div>
+        <p className="text-[11.5px] muted mt-4 mb-0">
+          Food data: Indian dishes from the{" "}
+          <a className="underline" href="https://github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-" target="_blank" rel="noopener noreferrer">Indian Nutrient Databank (INDB)</a>{" "}
+          (CC BY 4.0; values are home-recipe estimates) and{" "}
+          <a className="underline" href="https://fdc.nal.usda.gov/" target="_blank" rel="noopener noreferrer">USDA FoodData Central</a>. Check packaged foods against their labels.
+        </p>
       </div>
     </section>
   );
