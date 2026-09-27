@@ -5,6 +5,7 @@ import { computeDay, gradeOf, itemKey, macFor, mealTotals, sumMac } from "@/lib/
 import { emptyDay, planForDay, Store } from "@/lib/storage";
 import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
 import FoodPicker from "./FoodPicker";
+import { workoutsOn } from "@/lib/workouts";
 import { Chip, Meter, NumInput, toneBg, toneColor } from "./ui";
 
 type Props = {
@@ -32,6 +33,7 @@ export default function DayView({ store, update, date, setDate }: Props) {
   const plan = planForDay(store, saved);
   const r = computeDay(day, plan, store.foods, date < today);
   const grade = gradeOf(r.score);
+  const logged = workoutsOn(store.workouts, date);
   const circ = 2 * Math.PI * 48;
 
   /** Edit this day, snapshotting its plan the first time it's touched. */
@@ -288,10 +290,16 @@ export default function DayView({ store, update, date, setDate }: Props) {
                 <NumInput id="weight" step={0.1} min={0} value={day.weight} placeholder="After toilet, before food" onChange={(v) => updateDay((d) => { d.weight = v; })} />
               </div>
               <div className="flex items-end">
-                <label className="flex items-center gap-2 border rounded-[9px] px-3 py-[7px] font-semibold text-sm cursor-pointer" style={{ borderColor: "var(--line)" }}>
-                  <input type="checkbox" checked={day.workout} style={{ accentColor: "var(--accent)" }} onChange={(e) => updateDay((d) => { d.workout = e.target.checked; })} />
-                  Gym done
-                </label>
+                {logged.length ? (
+                  <div className="flex items-center gap-2 border rounded-[9px] px-3 py-[7px] font-semibold text-sm" style={{ borderColor: "var(--good)", color: "var(--good)" }}>
+                    ✓ Gym done · {logged.map((w) => w.name).join(", ")}
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 border rounded-[9px] px-3 py-[7px] font-semibold text-sm cursor-pointer" style={{ borderColor: "var(--line)" }}>
+                    <input type="checkbox" checked={day.workout} style={{ accentColor: "var(--accent)" }} onChange={(e) => updateDay((d) => { d.workout = e.target.checked; })} />
+                    Gym done
+                  </label>
+                )}
               </div>
             </div>
             <div className="mt-3">
