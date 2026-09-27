@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { addDays, dayName, fmt, longDate, todayISO, unitLabel } from "@/lib/format";
 import { computeDay, gradeOf, itemKey, macFor, mealTotals, sumMac } from "@/lib/macros";
 import { emptyDay, planForDay, Store } from "@/lib/storage";
-import { DayLog, ExtraItem, Macro } from "@/lib/types";
+import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
+import FoodPicker from "./FoodPicker";
 import { Chip, Meter, NumInput, toneBg, toneColor } from "./ui";
 
 type Props = {
@@ -48,7 +48,6 @@ export default function DayView({ store, update, date, setDate }: Props) {
     });
   }
 
-  const sortedFoods = Object.values(store.foods).sort((a, b) => a.name.localeCompare(b.name));
   const planList = Object.values(store.plans);
 
   return (
@@ -248,7 +247,7 @@ export default function DayView({ store, update, date, setDate }: Props) {
             <h3 className="text-xs uppercase tracking-[0.07em] muted font-bold mt-4 mb-2">Anything else you ate</h3>
             <Extras
               extras={day.extras}
-              foods={sortedFoods}
+              foods={store.foods}
               onAdd={(x) => updateDay((d) => d.extras.push(x))}
               onQty={(i, qty) => updateDay((d) => {
                 const x = d.extras[i];
@@ -309,71 +308,27 @@ export default function DayView({ store, update, date, setDate }: Props) {
 
 function Extras(props: {
   extras: ExtraItem[];
-  foods: { id: string; name: string; unit: string; per: number; kcal: number; p: number; c: number; f: number }[];
+  foods: Record<string, Food>;
   onAdd: (x: ExtraItem) => void;
   onQty: (i: number, qty: number) => void;
   onRemove: (i: number) => void;
 }) {
   const { extras, foods, onAdd, onQty, onRemove } = props;
-  const [foodId, setFoodId] = useState(foods[0]?.id ?? "__custom");
-  const [qty, setQty] = useState<number | null>(null);
-  const [custom, setCustom] = useState({ name: "", kcal: null as number | null, p: null as number | null, c: null as number | null, f: null as number | null });
-  const [error, setError] = useState("");
-  const isCustom = foodId === "__custom";
-  const selected = foods.find((f) => f.id === foodId);
-
-  function add(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    if (isCustom) {
-      const { kcal, p, c, f } = custom;
-      if (kcal == null && !p && !c && !f) return setError("Add calories or grams for this food.");
-      const pp = p || 0, cc = c || 0, ff = f || 0;
-      onAdd({ name: custom.name.trim() || "Extra", unit: "serving", qty: 1, kcal: kcal ?? pp * 4 + cc * 4 + ff * 9, p: pp, c: cc, f: ff });
-      setCustom({ name: "", kcal: null, p: null, c: null, f: null });
-    } else {
-      if (!selected) return;
-      if (!qty || qty <= 0) return setError("Enter how much you ate.");
-      const m = macFor(selected, qty);
-      onAdd({ name: selected.name, unit: selected.unit, qty, ...m });
-      setQty(null);
-    }
-  }
-
   return (
-    <div>
+    <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-1.5">
         {extras.length === 0 && <span className="muted text-[13.5px]">Nothing extra yet.</span>}
         {extras.map((x, i) => (
-          <div key={i} className="flex items-center gap-2 text-[13.5px] px-2.5 py-1.5 rounded-lg" style={{ background: "var(--panel-2)" }}>
-            <span className="flex-1 min-w-0 truncate font-semibold">{x.name}</span>
-            <span className="num muted text-xs">{fmt(x.kcal)} kcal · P{fmt(x.p)}</span>
+          <div key={i} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] px-2.5 py-1.5 rounded-lg" style={{ background: "var(--panel-2)" }}>
+            <span className="basis-full sm:basis-0 sm:flex-1 min-w-0 truncate font-semibold" title={x.name}>{x.name}</span>
+            <span className="num muted text-xs mr-auto sm:mr-0">{fmt(x.kcal)} kcal · P{fmt(x.p)}</span>
             <NumInput className="no-spin input num !w-16 !py-1 text-center" min={0} value={x.qty} onChange={(v) => v != null && v > 0 && onQty(i, v)} aria-label={`${x.name} amount`} />
             <span className="text-xs muted">{unitLabel(x.unit, x.qty)}</span>
             <button className="btn btn-sm btn-ghost" onClick={() => onRemove(i)} aria-label={`Remove ${x.name}`}>✕</button>
           </div>
         ))}
       </div>
-      <form className="flex flex-wrap gap-1.5 mt-2.5 items-center" onSubmit={add} autoComplete="off">
-        <select className="input !w-auto flex-[1_1_180px]" value={foodId} onChange={(e) => setFoodId(e.target.value)} aria-label="Food">
-          {foods.map((f) => <option key={f.id} value={f.id}>{f.name} (per {fmt(f.per)} {unitLabel(f.unit, f.per)})</option>)}
-          <option value="__custom">Something else (type macros)…</option>
-        </select>
-        {!isCustom && (
-          <NumInput className="input num !w-28" min={0} value={qty} placeholder={selected ? `Amount (${unitLabel(selected.unit, 2)})` : "Amount"} onChange={setQty} aria-label="Amount" />
-        )}
-        <button className="btn" type="submit">Add</button>
-        {isCustom && (
-          <div className="grid grid-cols-4 sm:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] gap-1.5 w-full">
-            <input className="input col-span-4 sm:col-span-1" type="text" placeholder="Food (e.g. 2 samosa)" value={custom.name} onChange={(e) => setCustom({ ...custom, name: e.target.value })} aria-label="Food name" maxLength={60} />
-            <NumInput placeholder="kcal" value={custom.kcal} onChange={(v) => setCustom({ ...custom, kcal: v })} aria-label="Calories" min={0} />
-            <NumInput placeholder="P g" value={custom.p} onChange={(v) => setCustom({ ...custom, p: v })} aria-label="Protein grams" min={0} />
-            <NumInput placeholder="C g" value={custom.c} onChange={(v) => setCustom({ ...custom, c: v })} aria-label="Carbs grams" min={0} />
-            <NumInput placeholder="F g" value={custom.f} onChange={(v) => setCustom({ ...custom, f: v })} aria-label="Fat grams" min={0} />
-          </div>
-        )}
-        {error && <p className="text-[13px] w-full m-0" style={{ color: "var(--bad)" }}>{error}</p>}
-      </form>
+      <FoodPicker mode="log" myFoods={foods} onAdd={onAdd} />
     </div>
   );
 }
