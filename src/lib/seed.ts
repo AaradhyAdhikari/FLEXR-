@@ -22,7 +22,7 @@ export const SEED_FOODS: Food[] = [
 export const SEED_PLAN: Plan = {
   id: "default",
   name: "Default plan",
-  targets: { protein: 150, carbs: 300, fat: 75, water: 3, steps: 10000 },
+  targets: { kcal: null, protein: 150, carbs: 300, fat: 75, water: 3, steps: 10000 },
   meals: [
     {
       id: "breakfast",

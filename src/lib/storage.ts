@@ -3,7 +3,8 @@
 import { DayLog, Food, Plan } from "./types";
 import { SEED_FOODS, SEED_PLAN } from "./seed";
 
-const KEY = "flexr-store-v1";
+// Each signed-in user gets their own foods, plans and day logs.
+const storeKey = (userId: string) => `flexr-store-v1:${userId}`;
 
 export type Store = {
   foods: Record<string, Food>;
@@ -12,50 +13,41 @@ export type Store = {
   activePlanId: string;
 };
 
-function defaultStore(): Store {
+export function defaultStore(): Store {
   const foods: Record<string, Food> = {};
-  SEED_FOODS.forEach((f) => (foods[f.id] = f));
-  return {
-    foods,
-    plans: { [SEED_PLAN.id]: SEED_PLAN },
-    days: {},
-    activePlanId: SEED_PLAN.id,
-  };
+  SEED_FOODS.forEach((f) => (foods[f.id] = { ...f }));
+  const plan = structuredClone(SEED_PLAN);
+  return { foods, plans: { [plan.id]: plan }, days: {}, activePlanId: plan.id };
 }
 
-export function loadStore(): Store {
-  if (typeof window === "undefined") return defaultStore();
+export function loadStore(userId: string): Store {
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = localStorage.getItem(storeKey(userId));
     if (!raw) return defaultStore();
-    const parsed = JSON.parse(raw) as Partial<Store>;
+    const s = JSON.parse(raw) as Partial<Store>;
     const base = defaultStore();
-    return {
-      foods: { ...base.foods, ...(parsed.foods || {}) },
-      plans: { ...base.plans, ...(parsed.plans || {}) },
-      days: parsed.days || {},
-      activePlanId: parsed.activePlanId || base.activePlanId,
-    };
+    const plans = s.plans && Object.keys(s.plans).length ? s.plans : base.plans;
+    const activePlanId = s.activePlanId && plans[s.activePlanId] ? s.activePlanId : Object.keys(plans)[0];
+    return { foods: s.foods || base.foods, plans, days: s.days || {}, activePlanId };
   } catch {
     return defaultStore();
   }
 }
 
-export function saveStore(store: Store) {
-  if (typeof window === "undefined") return;
+export function saveStore(userId: string, store: Store) {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(store));
+    localStorage.setItem(storeKey(userId), JSON.stringify(store));
   } catch {
-    // storage full or unavailable — fail silently, in-memory state still works this session
+    // storage full or unavailable — state still works in memory for this session
   }
-}
-
-export function todayISO(): string {
-  const d = new Date();
-  const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return z.toISOString().slice(0, 10);
 }
 
 export function emptyDay(date: string, planId: string): DayLog {
   return { date, planId, eaten: {}, extras: [], water: null, steps: null, weight: null, workout: false, notes: "" };
+}
+
+/** The plan a day is scored against: its own snapshot, else its plan, else the active one. */
+export function planForDay(store: Store, day: DayLog | undefined): Plan {
+  if (day?.plan) return day.plan;
+  return (day && store.plans[day.planId]) || store.plans[store.activePlanId] || Object.values(store.plans)[0];
 }

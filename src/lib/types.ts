@@ -1,9 +1,18 @@
+export type Profile = {
+  id: string; // normalized email or phone — one account per contact
+  name: string;
+  age: number;
+  contact: string;
+  contactType: "email" | "phone";
+  createdAt: string;
+};
+
 export type Food = {
   id: string;
   name: string;
   unit: string; // e.g. "g", "ml", "piece"
-  per: number; // amount that the macros below refer to
-  step: number; // increment for +/- buttons
+  per: number; // amount the macros below refer to
+  step: number; // increment for quantity buttons
   kcal: number;
   p: number; // protein g
   c: number; // carbs g
@@ -22,7 +31,7 @@ export type Meal = {
 };
 
 export type Targets = {
-  kcal?: number;
+  kcal: number | null; // null = use the total of the plan's meals
   protein: number;
   carbs: number;
   fat: number;
@@ -50,7 +59,8 @@ export type ExtraItem = {
 export type DayLog = {
   date: string; // yyyy-mm-dd
   planId: string;
-  eaten: Record<string, number>; // key = `${mealId}:${foodId}` -> quantity actually eaten
+  plan?: Plan; // snapshot, so editing a plan later doesn't rewrite past days
+  eaten: Record<string, number>; // `${mealId}:${foodId}` -> quantity eaten
   extras: ExtraItem[];
   water: number | null;
   steps: number | null;
