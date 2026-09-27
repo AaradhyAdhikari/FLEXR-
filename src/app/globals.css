@@ -1,26 +1,72 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #f3f4ef;
+  --panel: #ffffff;
+  --panel-2: #eceee6;
+  --ink: #161c18;
+  --muted: #5e6960;
+  --faint: #a3ada4;
+  --line: #dadfd5;
+  --accent: #1f6b52;
+  --accent-ink: #ffffff;
+  --good: #2e8b4f;
+  --warn: #c28510;
+  --bad: #c0412b;
+  --pro: #b54a33;
+  --carb: #c79a1e;
+  --fat: #6e8a2c;
+  --water: #2c7db8;
+  --step: #6a4fa3;
+  --kcal: #d4692b;
+  --good-bg: #e3f1e6;
+  --warn-bg: #f8edd4;
+  --bad-bg: #f7e1dc;
+  --radius: 12px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #111512;
+    --panel: #1a1f1b;
+    --panel-2: #232a25;
+    --ink: #e9eee8;
+    --muted: #9aa69c;
+    --faint: #5f6b62;
+    --line: #2e3630;
+    --accent: #4fb58c;
+    --accent-ink: #0d1510;
+    --good: #56c07a;
+    --warn: #e3a93a;
+    --bad: #ee6e55;
+    --pro: #e07a62;
+    --carb: #e4bc4a;
+    --fat: #9dbb55;
+    --water: #5aa8e0;
+    --step: #a08ad6;
+    --kcal: #f0935a;
+    --good-bg: #1d3325;
+    --warn-bg: #3a3019;
+    --bad-bg: #3d211c;
   }
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.font-display {
+  font-family: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
 }
