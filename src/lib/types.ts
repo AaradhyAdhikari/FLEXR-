@@ -73,3 +73,27 @@ export type DayLog = {
 };
 
 export type Macro = { kcal: number; p: number; c: number; f: number };
+
+export type WorkoutSet = {
+  weight: number | null; // kg
+  reps: number | null;
+  done: boolean;
+};
+
+export type WorkoutExercise = {
+  id: string; // unique within the workout
+  exerciseId: string | null; // free-exercise-db id, or null for a custom exercise
+  name: string;
+  muscles: string[]; // primary muscles, for display
+  sets: WorkoutSet[];
+};
+
+export type Workout = {
+  id: string;
+  date: string; // yyyy-mm-dd
+  name: string; // e.g. "Push day"
+  startedAt: string; // ISO time
+  finishedAt: string | null; // null while in progress
+  exercises: WorkoutExercise[];
+  notes: string;
+};

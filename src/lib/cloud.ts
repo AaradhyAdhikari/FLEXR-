@@ -3,7 +3,7 @@
 import { supabase } from "./supabase";
 import { defaultStore, Store } from "./storage";
 import { StoreDiff } from "./sync";
-import { DayLog, Food, Plan } from "./types";
+import { DayLog, Food, Plan, Workout } from "./types";
 
 export type CloudProfile = { id: string; name: string; age: number; active_plan_id: string | null; created_at: string };
 
@@ -31,18 +31,22 @@ export async function saveProfile(userId: string, name: string, age: number): Pr
  */
 export async function loadCloudStore(activePlanId: string | null): Promise<Store | null> {
   const db = supabase();
-  const [foods, plans, days] = await Promise.all([
+  const [foods, plans, days, workouts] = await Promise.all([
     db.from("user_foods").select("id, data"),
     db.from("plans").select("id, data"),
     db.from("day_logs").select("day, data"),
+    db.from("workouts").select("id, data"),
   ]);
   for (const r of [foods, plans, days]) if (r.error) throw r.error;
+  // The workouts table arrives with migration 0002; until it's run, carry on without workouts.
+  const workoutRows = workouts.error ? [] : workouts.data ?? [];
   if (!foods.data?.length && !plans.data?.length) return null;
 
-  const store: Store = { foods: {}, plans: {}, days: {}, activePlanId: "" };
+  const store: Store = { foods: {}, plans: {}, days: {}, workouts: {}, activePlanId: "" };
   for (const row of foods.data ?? []) if (isObj(row.data)) store.foods[row.id] = { ...(row.data as Food), id: row.id };
   for (const row of plans.data ?? []) if (isObj(row.data)) store.plans[row.id] = { ...(row.data as Plan), id: row.id };
   for (const row of days.data ?? []) if (isObj(row.data)) store.days[row.day] = { ...(row.data as DayLog), date: row.day };
+  for (const row of workoutRows) if (isObj(row.data)) store.workouts[row.id] = { ...(row.data as Workout), id: row.id };
 
   if (!Object.keys(store.plans).length) {
     const seed = defaultStore();
@@ -64,6 +68,7 @@ export async function applyDiff(userId: string, d: StoreDiff): Promise<void> {
   if (d.days.upsert.length)
     jobs.push(db.from("day_logs").upsert(d.days.upsert.map((x) => ({ user_id: userId, day: x.date, data: x }))));
 
+
   const upserts = await Promise.all(jobs);
   for (const r of upserts) if (r.error) throw r.error;
 
@@ -72,11 +77,28 @@ export async function applyDiff(userId: string, d: StoreDiff): Promise<void> {
   if (d.foods.remove.length) later.push(db.from("user_foods").delete().eq("user_id", userId).in("id", d.foods.remove));
   if (d.plans.remove.length) later.push(db.from("plans").delete().eq("user_id", userId).in("id", d.plans.remove));
   if (d.days.remove.length) later.push(db.from("day_logs").delete().eq("user_id", userId).in("day", d.days.remove));
+
   if (d.activePlanId != null) later.push(db.from("profiles").update({ active_plan_id: d.activePlanId }).eq("id", userId));
 
   const rest = await Promise.all(later);
   for (const r of rest) if (r.error) throw r.error;
+
+  // Workouts last, and separately: if database update 0002 hasn't been run yet,
+  // everything else still saves and the app can say exactly what's missing.
+  const w: PromiseLike<{ error: { code?: string; message?: string } | null }>[] = [];
+  if (d.workouts.upsert.length)
+    w.push(db.from("workouts").upsert(d.workouts.upsert.map((x) => ({ user_id: userId, id: x.id, day: x.date, data: x }))));
+  if (d.workouts.remove.length) w.push(db.from("workouts").delete().eq("user_id", userId).in("id", d.workouts.remove));
+  for (const r of await Promise.all(w)) {
+    if (!r.error) continue;
+    if (isMissingTable(r.error)) throw new Error(WORKOUTS_TABLE_MISSING);
+    throw r.error;
+  }
 }
+
+export const WORKOUTS_TABLE_MISSING = "workouts-table-missing";
+const isMissingTable = (e: { code?: string; message?: string }) =>
+  e.code === "PGRST205" || e.code === "42P01" || /relation .*workouts.* does not exist|could not find the table/i.test(e.message ?? "");
 
 export type LocalImport = {
   store: Store;

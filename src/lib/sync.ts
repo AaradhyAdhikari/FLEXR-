@@ -1,4 +1,4 @@
-import { DayLog, Food, Plan } from "./types";
+import { DayLog, Food, Plan, Workout } from "./types";
 import type { Store } from "./storage";
 
 /**
@@ -10,6 +10,7 @@ export type StoreDiff = {
   foods: { upsert: Food[]; remove: string[] };
   plans: { upsert: Plan[]; remove: string[] };
   days: { upsert: DayLog[]; remove: string[] };
+  workouts: { upsert: Workout[]; remove: string[] };
   activePlanId: string | null; // null = unchanged
 };
 
@@ -26,6 +27,7 @@ export function diffStores(prev: Store, next: Store): StoreDiff {
     foods: diffRecord(prev.foods, next.foods),
     plans: diffRecord(prev.plans, next.plans),
     days: diffRecord(prev.days, next.days),
+    workouts: diffRecord(prev.workouts ?? {}, next.workouts ?? {}),
     activePlanId: prev.activePlanId !== next.activePlanId ? next.activePlanId : null,
   };
 }
@@ -38,6 +40,8 @@ export function isEmptyDiff(d: StoreDiff): boolean {
     !d.plans.remove.length &&
     !d.days.upsert.length &&
     !d.days.remove.length &&
+    !d.workouts.upsert.length &&
+    !d.workouts.remove.length &&
     d.activePlanId == null
   );
 }
@@ -48,6 +52,7 @@ export function fullDiff(store: Store): StoreDiff {
     foods: { upsert: Object.values(store.foods), remove: [] },
     plans: { upsert: Object.values(store.plans), remove: [] },
     days: { upsert: Object.values(store.days), remove: [] },
+    workouts: { upsert: Object.values(store.workouts ?? {}), remove: [] },
     activePlanId: store.activePlanId,
   };
 }

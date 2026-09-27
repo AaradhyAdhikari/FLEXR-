@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { currentUser, signOut } from "@/lib/auth";
-import { applyDiff, fetchProfile, findLocalStoreToImport, loadCloudStore, LocalImport, saveProfile } from "@/lib/cloud";
+import { applyDiff, fetchProfile, findLocalStoreToImport, loadCloudStore, LocalImport, saveProfile, WORKOUTS_TABLE_MISSING } from "@/lib/cloud";
 import { todayISO } from "@/lib/format";
 import { defaultStore, loadStore, saveStore, Store } from "@/lib/storage";
 import { cloudEnabled, supabase } from "@/lib/supabase";
@@ -11,11 +11,12 @@ import { diffStores, fullDiff, isEmptyDiff } from "@/lib/sync";
 import DayView from "./DayView";
 import TrendsView from "./TrendsView";
 import PlanView from "./PlanView";
+import WorkoutsView from "./WorkoutsView";
 import ProfileSetup from "./ProfileSetup";
 
-type Tab = "day" | "trends" | "plan";
-const TABS: [Tab, string][] = [["day", "Day"], ["trends", "Trends"], ["plan", "Plan"]];
-type SyncStatus = "local" | "saved" | "saving" | "error";
+type Tab = "day" | "workouts" | "trends" | "plan";
+const TABS: [Tab, string][] = [["day", "Day"], ["workouts", "Workouts"], ["trends", "Trends"], ["plan", "Plan"]];
+type SyncStatus = "local" | "saved" | "saving" | "error" | "needs-update";
 type Update = (fn: (s: Store) => Store) => void;
 
 export default function AppShell() {
@@ -172,11 +173,12 @@ function CloudShell() {
       } else {
         setStatus("saved");
       }
-    } catch {
+    } catch (e) {
       flushing.current = false;
-      setStatus("error");
+      const missing = e instanceof Error && e.message === WORKOUTS_TABLE_MISSING;
+      setStatus(missing ? "needs-update" : "error");
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => void flushRef.current(), 5000);
+      timer.current = setTimeout(() => void flushRef.current(), missing ? 60000 : 5000);
     }
   }, [userId]);
 
@@ -190,7 +192,7 @@ function CloudShell() {
   useEffect(() => {
     storeRef.current = store;
     if (phase !== "ready" || !store || store === savedRef.current) return;
-    setStatus((st) => (st === "error" ? st : "saving"));
+    setStatus((st) => (st === "error" || st === "needs-update" ? st : "saving"));
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void flush(), 700);
   }, [store, phase, flush]);
@@ -280,6 +282,7 @@ function normalize(s: Store): Store {
     foods: s.foods && Object.keys(s.foods).length ? s.foods : base.foods,
     plans,
     days,
+    workouts: s.workouts || {},
     activePlanId: s.activePlanId && plans[s.activePlanId] ? s.activePlanId : Object.keys(plans)[0],
   };
 }
@@ -297,6 +300,7 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
   saved: "Saved",
   saving: "Saving…",
   error: "Not saved — retrying",
+  "needs-update": "Workouts not saved — run database update 0002",
 };
 
 function Dashboard(props: {
@@ -315,7 +319,7 @@ function Dashboard(props: {
   const [tab, setTab] = useState<Tab>("day");
   const [date, setDate] = useState(todayISO());
   const [range, setRange] = useState<7 | 14 | 30>(14);
-  const dot = status === "error" ? "var(--bad)" : status === "saving" ? "var(--warn)" : status === "saved" ? "var(--good)" : "var(--faint)";
+  const dot = status === "error" || status === "needs-update" ? "var(--bad)" : status === "saving" ? "var(--warn)" : status === "saved" ? "var(--good)" : "var(--faint)";
 
   return (
     <div className="max-w-[1120px] mx-auto px-4 pb-12">
@@ -368,6 +372,7 @@ function Dashboard(props: {
       {tab === "trends" && (
         <TrendsView store={store} range={range} setRange={setRange} openDay={(d) => { setDate(d); setTab("day"); }} />
       )}
+      {tab === "workouts" && <WorkoutsView store={store} update={update} />}
       {tab === "plan" && <PlanView store={store} update={update} />}
     </div>
   );

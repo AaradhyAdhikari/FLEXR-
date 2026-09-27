@@ -3,6 +3,7 @@
 import { addDays, avg, fmt, shortDate, todayISO } from "@/lib/format";
 import { computeDay, DayResult, itemKey, MeterKey, planTotals, statusOf } from "@/lib/macros";
 import { planForDay, Store } from "@/lib/storage";
+import { workoutsOn } from "@/lib/workouts";
 import { Chart, scoreTone, toneBg, toneColor, Tone } from "./ui";
 
 type Props = {
@@ -228,7 +229,7 @@ function Insights(props: { store: Store; days: string[]; results: (DayResult | n
     });
   else out.push({ tag: "Foods", tone: "good", body: "You ate every planned food on logged days." });
 
-  const gym = days.filter((d) => store.days[d]?.workout).length;
+  const gym = days.filter((d) => store.days[d]?.workout || workoutsOn(store.workouts, d).length).length;
   out.push({ tag: "Gym", tone: "none", body: `${gym} gym session${gym === 1 ? "" : "s"} logged in this range.` });
 
   return (
