@@ -8,11 +8,32 @@ Flexr is a personal fitness companion that brings together the three things most
 
 ## Status
 
-🚧 Early days — this repo currently just holds the idea. Build-out coming soon.
+🚧 Early MVP. Working today:
+
+- **Sign in** with name, age and email or phone (local only for now; no password yet)
+- **Day** — tick meals/foods from your plan, add extras, log water, steps, weight and gym; live macro bars, daily score and "what to fix"
+- **Trends** — 7/14/30-day charts (score, weight, protein, calories, carbs, fat, water, steps), insights and history
+- **Plan** — per-user diet plans, targets, meals and an editable food list
+
+Data is stored per user in the browser (localStorage) until Supabase is added.
+
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open http://localhost:3000.
 
 ## Roadmap
 
-- [ ] Food logging with auto macro breakdown
+- [x] Simple sign-in (name, age, email/phone)
+- [x] Food logging with auto macro breakdown
+- [x] Diet plans per user
+- [x] Trends and history
+- [ ] Supabase auth (OTP) and database
 - [ ] Exercise library with form cues / common mistakes
-- [ ] Step count tracking
-- [ ] Daily dashboard tying it all together
+- [x] Step count tracking (manual entry)
+- [x] Daily dashboard tying it all together
+- [ ] Workout logging (sets/reps/weight)
