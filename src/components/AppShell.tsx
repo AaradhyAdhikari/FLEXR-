@@ -14,10 +14,40 @@ import PlanView from "./PlanView";
 import WorkoutsView from "./WorkoutsView";
 import ExercisesView from "./ExercisesView";
 import ProfileSetup from "./ProfileSetup";
+import { OfflineBadge } from "./Offline";
 
 type Tab = "day" | "workouts" | "exercises" | "trends" | "plan";
 const TABS: [Tab, string][] = [["day", "Day"], ["workouts", "Workouts"], ["exercises", "Exercises"], ["trends", "Trends"], ["plan", "Plan"]];
 type SyncStatus = "local" | "saved" | "saving" | "error" | "needs-update";
+
+/**
+ * A copy of unsaved work, kept in this browser while the connection is down.
+ * Cleared as soon as the database has it, so it only ever holds what would
+ * otherwise be lost by closing the tab offline.
+ */
+const mirrorKey = (uid: string) => `flexr-unsaved:${uid}`;
+function keepUnsaved(uid: string, store: Store | null) {
+  try {
+    if (store) localStorage.setItem(mirrorKey(uid), JSON.stringify(store));
+  } catch {
+    /* private mode, or full: nothing we can do */
+  }
+}
+function forgetUnsaved(uid: string) {
+  try {
+    localStorage.removeItem(mirrorKey(uid));
+  } catch {
+    /* ignore */
+  }
+}
+function readUnsaved(uid: string): Store | null {
+  try {
+    const raw = localStorage.getItem(mirrorKey(uid));
+    return raw ? (JSON.parse(raw) as Store) : null;
+  } catch {
+    return null;
+  }
+}
 type Update = (fn: (s: Store) => Store) => void;
 
 export default function AppShell() {
@@ -81,6 +111,7 @@ function CloudShell() {
   const [store, setStore] = useState<Store | null>(null);
   const [status, setStatus] = useState<SyncStatus>("saved");
   const [offer, setOffer] = useState<LocalImport | null>(null);
+  const [unsaved, setUnsaved] = useState<Store | null>(null);
   const [notice, setNotice] = useState("");
 
   // What the database is known to hold, and the latest in-app state.
@@ -113,6 +144,10 @@ function CloudShell() {
     savedRef.current = s;
     storeRef.current = s;
     setStore(s);
+    // Anything logged offline and never saved is offered back rather than dropped.
+    const left = readUnsaved(uid);
+    if (left && JSON.stringify(left) !== JSON.stringify(s)) setUnsaved(left);
+    else forgetUnsaved(uid);
     setPhase("ready");
   }, []);
 
@@ -171,6 +206,7 @@ function CloudShell() {
     try {
       await applyDiff(userId, diff);
       savedRef.current = target;
+      forgetUnsaved(userId);
       flushing.current = false;
       if (storeRef.current !== target) {
         void flushRef.current(); // more edits arrived while saving
@@ -197,9 +233,10 @@ function CloudShell() {
     storeRef.current = store;
     if (phase !== "ready" || !store || store === savedRef.current) return;
     setStatus((st) => (st === "error" || st === "needs-update" ? st : "saving"));
+    keepUnsaved(userId, store);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void flush(), 700);
-  }, [store, phase, flush]);
+  }, [store, phase, flush, userId]);
 
   // Warn before closing the tab while something is still being saved.
   useEffect(() => {
@@ -251,6 +288,17 @@ function CloudShell() {
       status={status}
       notice={notice}
       onDismissNotice={() => setNotice("")}
+      unsaved={unsaved}
+      onRestoreUnsaved={() => {
+        if (!unsaved) return;
+        update(() => unsaved);
+        setUnsaved(null);
+        setNotice("Restored what you logged offline.");
+      }}
+      onDiscardUnsaved={() => {
+        forgetUnsaved(userId);
+        setUnsaved(null);
+      }}
       offer={offer}
       onImport={() => {
         if (!offer) return;
@@ -321,8 +369,11 @@ function Dashboard(props: {
   offer?: LocalImport | null;
   onImport?: () => void;
   onDismissOffer?: () => void;
+  unsaved?: Store | null;
+  onRestoreUnsaved?: () => void;
+  onDiscardUnsaved?: () => void;
 }) {
-  const { who, age, store, update, status, onLogout, notice, onDismissNotice, offer, onImport, onDismissOffer } = props;
+  const { who, age, store, update, status, onLogout, notice, onDismissNotice, offer, onImport, onDismissOffer, unsaved, onRestoreUnsaved, onDiscardUnsaved } = props;
   const [tab, setTab] = useState<Tab>("day");
   const [date, setDate] = useState(todayISO());
   const [range, setRange] = useState<7 | 14 | 30>(14);
@@ -356,6 +407,7 @@ function Dashboard(props: {
           ))}
         </nav>
         <div className="flex items-center gap-3">
+          <OfflineBadge />
           <span className="text-xs muted flex items-center gap-1.5" role="status" aria-live="polite">
             <span className="w-[7px] h-[7px] rounded-full" style={{ background: dot }} />
             {STATUS_TEXT[status]}
@@ -371,6 +423,15 @@ function Dashboard(props: {
           </p>
           <button className="btn btn-primary btn-sm" onClick={onImport}>Import</button>
           <button className="btn btn-ghost btn-sm" onClick={onDismissOffer}>No thanks</button>
+        </div>
+      )}
+      {unsaved && (
+        <div className="panel mt-4 flex flex-wrap items-center gap-3" style={{ borderColor: "var(--warn)" }} role="alert">
+          <p className="m-0 text-sm flex-1 min-w-[220px]">
+            You logged something while offline that never reached your account. Put it back?
+          </p>
+          <button className="btn btn-primary btn-sm" onClick={onRestoreUnsaved}>Restore</button>
+          <button className="btn btn-ghost btn-sm" onClick={onDiscardUnsaved}>Discard</button>
         </div>
       )}
       {notice && (
