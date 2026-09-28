@@ -7,6 +7,24 @@ export type Profile = {
   createdAt: string;
 };
 
+/** One ingredient inside a recipe, with the macros for the amount used. */
+export type RecipeItem = {
+  name: string;
+  qty: number;
+  unit: string;
+  kcal: number;
+  p: number;
+  c: number;
+  f: number;
+  foodId?: string; // when it came from your food list
+};
+
+/** A dish built from ingredients. Macros on the food are per serving. */
+export type Recipe = {
+  servings: number;
+  items: RecipeItem[];
+};
+
 export type Food = {
   id: string;
   name: string;
@@ -20,6 +38,7 @@ export type Food = {
   source?: "INDB" | "USDA" | "OFF" | "Mine"; // where the numbers came from, if added from a database
   sourceId?: string; // e.g. "indb:ASC152"
   gramsPerUnit?: number; // e.g. 1 bowl = 296 g
+  recipe?: Recipe; // set when this food is a dish built from ingredients
 };
 
 export type MealItem = {

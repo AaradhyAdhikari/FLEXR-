@@ -7,6 +7,8 @@ import { Store } from "@/lib/storage";
 import { Food, Plan, Targets } from "@/lib/types";
 import { NumInput } from "./ui";
 import FoodPicker from "./FoodPicker";
+import RecipeEditor from "./RecipeEditor";
+import { ingredientLine, isRecipe } from "@/lib/recipes";
 import SmartTargets from "./SmartTargets";
 import { catalogToFood, CatalogFood } from "@/lib/foodSearch";
 
@@ -43,6 +45,8 @@ export default function PlanView({ store, update, profileAge }: Props) {
   const [addedMsg, setAddedMsg] = useState("");
   const plan = store.plans[selId] || store.plans[store.activePlanId];
   const foods = Object.values(store.foods).sort((a, b) => a.name.localeCompare(b.name));
+  // null = not building anything; { food } = editing that dish; { food: null } = new dish
+  const [recipeFor, setRecipeFor] = useState<{ food: Food | null } | null>(null);
   const pt = planTotals(plan, store.foods);
 
   function editPlan(fn: (p: Plan) => void) {
@@ -285,6 +289,23 @@ export default function PlanView({ store, update, profileAge }: Props) {
           <FoodPicker mode="list" myFoods={store.foods} onPick={addFromDatabase} placeholder="Search 860+ Indian dishes, or USDA foods" />
           {addedMsg && <p className="text-[13px] mt-2 mb-0" style={{ color: "var(--good)" }}>{addedMsg}</p>}
         </div>
+        <div className="mb-4">
+          <label className="label">Dishes you cook</label>
+          <p className="hint">Build a dish from its ingredients once — rajma chawal, a shake, Sunday biryani — then log it as one food.</p>
+          <button className="btn" onClick={() => setRecipeFor({ food: null })}>Build a dish</button>
+        </div>
+        {recipeFor && (
+          <RecipeEditor
+            myFoods={store.foods}
+            editing={recipeFor.food}
+            onCancel={() => setRecipeFor(null)}
+            onSave={(food) => {
+              update((s) => ({ ...s, foods: { ...s.foods, [food.id]: food } }));
+              setRecipeFor(null);
+              setAddedMsg(`${food.name} saved · ${food.kcal} kcal a serving`);
+            }}
+          />
+        )}
         <p className="hint">
           Macros per amount. Eggs, bananas and rotis are per 1 piece; rice, dal and chicken per 100 g; milk per 100 ml. “Step” is how much the +/− buttons change. Check packaged foods against their labels.
         </p>
@@ -306,7 +327,10 @@ export default function PlanView({ store, update, profileAge }: Props) {
                     onChange={(v) => editFood(f.id, { [k]: (k === "per" || k === "step") ? (v && v > 0 ? v : 1) : (v ?? 0) })} />
                 </div>
               ))}
-              <div>
+              <div className="flex gap-1">
+                {isRecipe(f) && (
+                  <button className="btn btn-sm" aria-label={`Edit ${f.name} ingredients`} title={ingredientLine(f.recipe!)} onClick={() => setRecipeFor({ food: f })}>Dish</button>
+                )}
                 <button className="btn btn-sm btn-ghost btn-danger" aria-label={`Delete ${f.name}`} onClick={() => deleteFood(f.id)}>✕</button>
               </div>
             </div>

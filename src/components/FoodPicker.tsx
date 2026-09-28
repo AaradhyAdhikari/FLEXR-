@@ -30,7 +30,8 @@ function preview(item: CatalogFood): { label: string; m: Macro } {
 
 type Props =
   | { mode: "log"; myFoods: Record<string, Food>; onAdd: (x: ExtraItem) => void }
-  | { mode: "list"; myFoods: Record<string, Food>; onPick: (item: CatalogFood) => void; placeholder?: string };
+  | { mode: "list"; myFoods: Record<string, Food>; onPick: (item: CatalogFood) => void; placeholder?: string }
+  | { mode: "ingredient"; myFoods: Record<string, Food>; onPick: (item: CatalogFood) => void; placeholder?: string };
 
 /**
  * Search the user's foods, INDB Indian dishes and (on request) USDA.
@@ -49,6 +50,7 @@ export default function FoodPicker(props: Props) {
   const [scanning, setScanning] = useState(false);
   const [scan, setScan] = useState<{ state: "idle" | "looking" | "notfound" | "error"; code?: string; msg?: string; found?: CatalogFood }>({ state: "idle" });
   const isLog = props.mode === "log";
+  const picks = props.mode !== "log"; // "list" and "ingredient" both hand the food back
 
   // Barcode → Open Food Facts (through Flexr's server, which identifies the app as OFF asks).
   const onDetected = useCallback(async (code: string) => {
@@ -118,7 +120,7 @@ export default function FoodPicker(props: Props) {
   }
 
   function choose(item: CatalogFood) {
-    if (props.mode === "list") {
+    if (picks) {
       props.onPick(item);
       setQ("");
       setUsda(null);
@@ -147,7 +149,7 @@ export default function FoodPicker(props: Props) {
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setScan({ state: "idle" })}>OK</button>
         </div>
       )}
-      {scan.found && props.mode === "list" && (
+      {scan.found && picks && (
         <div className="rounded-[10px] border flex flex-col overflow-hidden" style={{ borderColor: "var(--accent)" }}>
           <ResultRow item={scan.found} onChoose={(item) => { props.onPick(item); setScan({ state: "idle" }); }} actionLabel="Add" />
         </div>
@@ -156,7 +158,7 @@ export default function FoodPicker(props: Props) {
       <input
         className="input"
         type="search"
-        placeholder={props.mode === "list" ? props.placeholder ?? "Search foods, e.g. dal, paneer, oats" : "Search what you ate, e.g. rajma, poha, banana"}
+        placeholder={picks ? props.placeholder ?? "Search foods, e.g. dal, paneer, oats" : "Search what you ate, e.g. rajma, poha, banana"}
         value={q}
         onFocus={ensureIndb}
         onChange={(e) => { setQ(e.target.value); ensureIndb(); }}
@@ -176,11 +178,19 @@ export default function FoodPicker(props: Props) {
           {results.length === 0 && !usdaResults.length && (
             <div className="px-3 py-2.5 text-sm muted">{indb ? "No matches in your foods or Indian dishes." : "Loading foods…"}</div>
           )}
-          {results.map((item) => <ResultRow key={item.id} item={item} onChoose={choose} actionLabel={props.mode === "list" ? (item.src === "Mine" ? "In your list" : "Add") : undefined} disabled={props.mode === "list" && item.src === "Mine"} />)}
+          {results.map((item) => (
+            <ResultRow
+              key={item.id}
+              item={item}
+              onChoose={choose}
+              actionLabel={props.mode === "list" ? (item.src === "Mine" ? "In your list" : "Add") : props.mode === "ingredient" ? "Add" : undefined}
+              disabled={props.mode === "list" && item.src === "Mine"}
+            />
+          ))}
           {usdaResults.length > 0 && (
             <>
               <div className="px-3 py-1.5 text-[11px] uppercase tracking-[0.07em] font-bold muted border-t" style={{ borderColor: "var(--line)", background: "var(--panel-2)" }}>From USDA</div>
-              {usdaResults.map((item) => <ResultRow key={item.id} item={item} onChoose={choose} actionLabel={props.mode === "list" ? "Add" : undefined} />)}
+              {usdaResults.map((item) => <ResultRow key={item.id} item={item} onChoose={choose} actionLabel={picks ? "Add" : undefined} />)}
             </>
           )}
           <div className="flex flex-wrap gap-2 items-center px-3 py-2 border-t" style={{ borderColor: "var(--line)", background: "var(--panel-2)" }}>
