@@ -1,0 +1,6 @@
+# Keep line endings stable: the repo is LF, whatever the machine does locally.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.jar binary
