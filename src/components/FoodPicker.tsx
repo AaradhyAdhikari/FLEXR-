@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { fmt, unitLabel } from "@/lib/format";
 import { CatalogFood, loadIndb, macrosForGrams, mineAsCatalog, searchFoods } from "@/lib/foodSearch";
 import { macFor } from "@/lib/macros";
 import { ExtraItem, Food, Macro } from "@/lib/types";
 import { NumInput } from "./ui";
+import BarcodeScanner from "./BarcodeScanner";
 
-const SRC_LABEL: Record<CatalogFood["src"], string> = { Mine: "My food", INDB: "Indian dish · INDB", USDA: "USDA" };
+const SRC_LABEL: Record<CatalogFood["src"], string> = { Mine: "My food", INDB: "Indian dish · INDB", USDA: "USDA", OFF: "Packaged · Open Food Facts" };
 
 function MacroText({ m }: { m: Macro }) {
   return (
@@ -45,6 +46,29 @@ export default function FoodPicker(props: Props) {
   const [usdaMsg, setUsdaMsg] = useState("");
   const [picked, setPicked] = useState<CatalogFood | null>(null);
   const [custom, setCustom] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scan, setScan] = useState<{ state: "idle" | "looking" | "notfound" | "error"; code?: string; msg?: string; found?: CatalogFood }>({ state: "idle" });
+  const isLog = props.mode === "log";
+
+  // Barcode → Open Food Facts (through Flexr's server, which identifies the app as OFF asks).
+  const onDetected = useCallback(async (code: string) => {
+    setScanning(false);
+    setScan({ state: "looking", code });
+    try {
+      const res = await fetch(`/api/foods/barcode/${code}`);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) return setScan({ state: "error", code, msg: body.error || "Lookup failed. Try again." });
+      if (!body.found) return setScan({ state: "notfound", code });
+      if (isLog) {
+        setScan({ state: "idle" });
+        setPicked(body.food);
+      } else {
+        setScan({ state: "idle", code, found: body.food });
+      }
+    } catch {
+      setScan({ state: "error", code, msg: "Couldn't reach the server. Check your connection." });
+    }
+  }, [isLog]);
   const loadStarted = useRef(false);
 
   const ensureIndb = () => {
@@ -113,6 +137,22 @@ export default function FoodPicker(props: Props) {
   const term = q.trim();
   return (
     <div className="flex flex-col gap-2">
+      {scanning && <BarcodeScanner onDetected={onDetected} onClose={() => setScanning(false)} />}
+      {scan.state === "looking" && <p className="text-sm muted m-0" role="status">Looking up barcode {scan.code}…</p>}
+      {scan.state === "error" && <p className="text-sm m-0" style={{ color: "var(--bad)" }} role="alert">{scan.msg}</p>}
+      {scan.state === "notfound" && (
+        <div className="rounded-[10px] px-3 py-2 text-sm flex flex-wrap items-center gap-2" style={{ background: "var(--warn-bg)" }} role="alert">
+          <span className="flex-1 min-w-[200px]" style={{ color: "var(--warn)" }}>Barcode {scan.code} isn&apos;t in Open Food Facts yet (or has no nutrition info).{isLog ? " Enter the macros from the label instead." : " Add it with “Add food” below using the label."}</span>
+          {isLog && <button type="button" className="btn btn-sm" onClick={() => { setScan({ state: "idle" }); setCustom(true); }}>Enter from label</button>}
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setScan({ state: "idle" })}>OK</button>
+        </div>
+      )}
+      {scan.found && props.mode === "list" && (
+        <div className="rounded-[10px] border flex flex-col overflow-hidden" style={{ borderColor: "var(--accent)" }}>
+          <ResultRow item={scan.found} onChoose={(item) => { props.onPick(item); setScan({ state: "idle" }); }} actionLabel="Add" />
+        </div>
+      )}
+      <div className="flex gap-2">
       <input
         className="input"
         type="search"
@@ -123,6 +163,12 @@ export default function FoodPicker(props: Props) {
         aria-label="Search foods"
         maxLength={60}
       />
+      {!scanning && (
+        <button type="button" className="btn whitespace-nowrap" onClick={() => { setScan({ state: "idle" }); setScanning(true); }} aria-label="Scan barcode">
+          Scan
+        </button>
+      )}
+      </div>
       {indbError && <p className="text-xs m-0" style={{ color: "var(--bad)" }}>Couldn&apos;t load the Indian food list. Check your connection.</p>}
 
       {term.length >= 2 && (
@@ -209,7 +255,7 @@ function AmountStep({ item, onAdd, onCancel }: { item: CatalogFood; onAdd: (x: E
     <div className="rounded-[10px] border p-3 flex flex-col gap-2.5" style={{ borderColor: "var(--accent)" }}>
       <div>
         <div className="font-semibold text-sm">{item.name}</div>
-        <div className="text-xs muted">{SRC_LABEL[item.src]}{item.src === "INDB" ? " · home-style recipe estimate" : ""}</div>
+        <div className="text-xs muted">{SRC_LABEL[item.src]}{item.src === "INDB" ? " · home-style recipe estimate" : item.src === "OFF" ? " · community data, check the label" : ""}</div>
       </div>
       <div className="flex gap-2 items-center flex-wrap">
         <NumInput className="input num !w-24" min={0} step={opt.key === "g" ? 10 : item.mine ? item.mine.step || 1 : 0.5} value={qty} onChange={setQty} aria-label="Amount" autoFocus />

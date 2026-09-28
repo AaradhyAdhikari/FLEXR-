@@ -4,7 +4,7 @@ import { Food, Macro } from "./types";
 export type CatalogFood = {
   id: string; // "indb:ASC001", "usda:12345", or a user food id
   name: string;
-  src: "INDB" | "USDA" | "Mine";
+  src: "INDB" | "USDA" | "OFF" | "Mine";
   kcal: number;
   p: number;
   c: number;

@@ -54,6 +54,7 @@ function LocalShell() {
   return (
     <Dashboard
       who={`${user.name} · ${user.age}`}
+      age={user.age}
       store={store}
       update={update}
       status="local"
@@ -75,6 +76,7 @@ function CloudShell() {
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [who, setWho] = useState("");
+  const [age, setAge] = useState<number | undefined>(undefined);
   const [store, setStore] = useState<Store | null>(null);
   const [status, setStatus] = useState<SyncStatus>("saved");
   const [offer, setOffer] = useState<LocalImport | null>(null);
@@ -138,6 +140,7 @@ function CloudShell() {
           return;
         }
         setWho(`${profile.name} · ${profile.age}`);
+        setAge(profile.age);
         await loadData(uid, mail, profile.active_plan_id);
       } catch {
         if (!cancelled) setPhase("error");
@@ -225,6 +228,7 @@ function CloudShell() {
         onSave={async (name, age) => {
           const p = await saveProfile(userId, name, age);
           setWho(`${p.name} · ${p.age}`);
+          setAge(p.age);
           setPhase("loading");
           try {
             await loadData(userId, email, p.active_plan_id);
@@ -240,6 +244,7 @@ function CloudShell() {
   return (
     <Dashboard
       who={who}
+      age={age}
       store={store}
       update={update}
       status={status}
@@ -305,6 +310,7 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
 
 function Dashboard(props: {
   who: string;
+  age?: number;
   store: Store;
   update: Update;
   status: SyncStatus;
@@ -315,7 +321,7 @@ function Dashboard(props: {
   onImport?: () => void;
   onDismissOffer?: () => void;
 }) {
-  const { who, store, update, status, onLogout, notice, onDismissNotice, offer, onImport, onDismissOffer } = props;
+  const { who, age, store, update, status, onLogout, notice, onDismissNotice, offer, onImport, onDismissOffer } = props;
   const [tab, setTab] = useState<Tab>("day");
   const [date, setDate] = useState(todayISO());
   const [range, setRange] = useState<7 | 14 | 30>(14);
@@ -368,12 +374,12 @@ function Dashboard(props: {
         </div>
       )}
 
-      {tab === "day" && <DayView store={store} update={update} date={date} setDate={setDate} />}
+      {tab === "day" && <DayView store={store} update={update} date={date} setDate={setDate} onOpenPlan={() => setTab("plan")} />}
       {tab === "trends" && (
         <TrendsView store={store} range={range} setRange={setRange} openDay={(d) => { setDate(d); setTab("day"); }} />
       )}
       {tab === "workouts" && <WorkoutsView store={store} update={update} />}
-      {tab === "plan" && <PlanView store={store} update={update} />}
+      {tab === "plan" && <PlanView store={store} update={update} profileAge={age} />}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { emptyDay, planForDay, Store } from "@/lib/storage";
 import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
 import FoodPicker from "./FoodPicker";
 import { workoutsOn } from "@/lib/workouts";
+import { checkInReady } from "./SmartTargets";
 import { Chip, Meter, NumInput, toneBg, toneColor } from "./ui";
 
 type Props = {
@@ -13,6 +14,7 @@ type Props = {
   update: (fn: (s: Store) => Store) => void;
   date: string;
   setDate: (d: string) => void;
+  onOpenPlan?: () => void;
 };
 
 function MacLine({ m }: { m: Macro }) {
@@ -26,7 +28,7 @@ function MacLine({ m }: { m: Macro }) {
   );
 }
 
-export default function DayView({ store, update, date, setDate }: Props) {
+export default function DayView({ store, update, date, setDate, onOpenPlan }: Props) {
   const today = todayISO();
   const saved = store.days[date];
   const day = saved || emptyDay(date, store.activePlanId);
@@ -69,6 +71,13 @@ export default function DayView({ store, update, date, setDate }: Props) {
           <button className="btn btn-ghost" onClick={() => setDate(today)}>Today</button>
         </div>
       </div>
+
+      {date === today && onOpenPlan && checkInReady(store, today) && (
+        <div className="panel mb-4 flex flex-wrap items-center gap-3" style={{ borderColor: "var(--accent)" }}>
+          <p className="m-0 text-sm flex-1 min-w-[200px]"><b>Your 2-week check-in is ready.</b> See how your weight moved and whether to adjust your calories.</p>
+          <button className="btn btn-primary btn-sm" onClick={onOpenPlan}>Open check-in</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-4 items-start">
         {/* Summary column */}

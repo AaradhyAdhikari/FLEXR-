@@ -17,7 +17,7 @@ export type Food = {
   p: number; // protein g
   c: number; // carbs g
   f: number; // fat g
-  source?: "INDB" | "USDA" | "Mine"; // where the numbers came from, if added from a database
+  source?: "INDB" | "USDA" | "OFF" | "Mine"; // where the numbers came from, if added from a database
   sourceId?: string; // e.g. "indb:ASC152"
   gramsPerUnit?: number; // e.g. 1 bowl = 296 g
 };
@@ -47,6 +47,7 @@ export type Plan = {
   name: string;
   targets: Targets;
   meals: Meal[];
+  smart?: import("./targets").SmartSettings; // set when targets come from Smart targets
 };
 
 export type ExtraItem = {
