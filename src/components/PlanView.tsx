@@ -7,11 +7,13 @@ import { Store } from "@/lib/storage";
 import { Food, Plan, Targets } from "@/lib/types";
 import { NumInput } from "./ui";
 import FoodPicker from "./FoodPicker";
+import SmartTargets from "./SmartTargets";
 import { catalogToFood, CatalogFood } from "@/lib/foodSearch";
 
 type Props = {
   store: Store;
   update: (fn: (s: Store) => Store) => void;
+  profileAge?: number;
 };
 
 const TARGET_FIELDS: [keyof Targets, string, number][] = [
@@ -33,7 +35,7 @@ function withPlan(s: Store, plan: Plan): Store {
   return { ...s, plans: { ...s.plans, [plan.id]: plan }, days };
 }
 
-export default function PlanView({ store, update }: Props) {
+export default function PlanView({ store, update, profileAge }: Props) {
   const plans = Object.values(store.plans);
   const [selId, setSelId] = useState(store.activePlanId);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -162,6 +164,17 @@ export default function PlanView({ store, update }: Props) {
           <span className="text-[12.5px] muted">Start from scratch</span>
         </button>
       </div>
+
+      <SmartTargets
+        key={plan.id}
+        store={store}
+        plan={plan}
+        profileAge={profileAge}
+        onApply={(t, smart) => editPlan((p) => {
+          p.targets = { ...p.targets, kcal: t.kcal, protein: t.protein, carbs: t.carbs, fat: t.fat };
+          p.smart = smart;
+        })}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] gap-4 items-start">
         <div className="panel">
@@ -305,7 +318,8 @@ export default function PlanView({ store, update }: Props) {
           Food data: Indian dishes from the{" "}
           <a className="underline" href="https://github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-" target="_blank" rel="noopener noreferrer">Indian Nutrient Databank (INDB)</a>{" "}
           (CC BY 4.0; values are home-recipe estimates) and{" "}
-          <a className="underline" href="https://fdc.nal.usda.gov/" target="_blank" rel="noopener noreferrer">USDA FoodData Central</a>. Check packaged foods against their labels.
+          <a className="underline" href="https://fdc.nal.usda.gov/" target="_blank" rel="noopener noreferrer">USDA FoodData Central</a>; scanned products from{" "}
+          <a className="underline" href="https://world.openfoodfacts.org/" target="_blank" rel="noopener noreferrer">Open Food Facts</a> (ODbL, community-edited). Check packaged foods against their labels.
         </p>
       </div>
     </section>
