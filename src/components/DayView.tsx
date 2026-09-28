@@ -5,6 +5,7 @@ import { computeDay, gradeOf, itemKey, macFor, mealTotals, sumMac } from "@/lib/
 import { emptyDay, planForDay, Store } from "@/lib/storage";
 import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
 import FoodPicker from "./FoodPicker";
+import StepsSync from "./StepsSync";
 import { workoutsOn } from "@/lib/workouts";
 import { checkInReady } from "./SmartTargets";
 import { Chip, Meter, NumInput, toneBg, toneColor } from "./ui";
@@ -287,6 +288,7 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
                   <NumInput id="steps" className="input num flex-1 !min-w-[70px]" step={100} min={0} inputMode="numeric" value={day.steps} onChange={(v) => updateDay((d) => { d.steps = v; })} />
                   <button className="btn btn-sm" onClick={() => updateDay((d) => { d.steps = (d.steps || 0) + 1000; })}>+1k</button>
                 </div>
+                <StepsSync update={update} />
               </div>
             </div>
           </div>

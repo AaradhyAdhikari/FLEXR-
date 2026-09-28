@@ -17,6 +17,7 @@ Flexr is a personal fitness companion that brings together the three things most
 - **Plan** — per-user diet plans, targets, meals and an editable food list
 - **Workouts** — log sets, reps and weight with last session's numbers shown, a rest timer, personal-record badges, repeat-a-workout, and per-exercise progress (top set chart, estimated 1-rep max, plateau hints). Search 870+ exercises or add your own
 - **Exercises** — a library of 876 exercises with looping animations (WorkoutX) for 580 of them, photos, step-by-step instructions, a front/back body map of the muscles worked, Flexr's own form cues and common mistakes for 39 main lifts, and alternatives when the equipment is taken. Filter by muscle (tap the body map), equipment and level; add straight to today's workout
+- **Steps from your phone** — in the Flexr phone app (see `native/`), step counts sync automatically from Health Connect on Android (Samsung Health, Google Fit, Fitbit or the phone's counter) or Apple Health on iOS. The website keeps the manual box
 - **Smart targets** — enter sex, age, height, weight, activity and goal (cut / recomp / bulk) to get calories and macros (Mifflin-St Jeor); every 2 weeks a check-in compares your weight trend with what you ate and suggests adjusting by up to 250 kcal
 - **Barcode scanning** — scan packaged foods with the phone camera (or type the digits); looked up in Open Food Facts through the server
 - **Food search** — 865 Indian dishes (INDB) with per-person servings, plus live USDA search through the server; add any result to today or to your food list
@@ -61,7 +62,7 @@ Open http://localhost:3000.
 - [x] Diet plans per user
 - [x] Trends and history
 - [x] Supabase auth (email) and database
-- [x] Step count tracking (manual entry)
+- [x] Step count tracking (manual entry, plus automatic sync in the phone app)
 - [x] Daily dashboard tying it all together
 - [x] Food search: INDB Indian dishes + live USDA
 - [x] Exercise library with photos, form cues and common mistakes (free-exercise-db)
