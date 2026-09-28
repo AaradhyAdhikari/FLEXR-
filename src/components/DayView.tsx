@@ -6,6 +6,7 @@ import { emptyDay, planForDay, Store } from "@/lib/storage";
 import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
 import FoodPicker from "./FoodPicker";
 import StepsSync from "./StepsSync";
+import { foodFrom, hasFood, lastLoggedDay, recentExtras, withoutAlreadyThere } from "@/lib/repeat";
 import { workoutsOn } from "@/lib/workouts";
 import { checkInReady } from "./SmartTargets";
 import { Chip, Meter, NumInput, toneBg, toneColor } from "./ui";
@@ -38,6 +39,10 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
   const grade = gradeOf(r.score);
   const logged = workoutsOn(store.workouts, date);
   const circ = 2 * Math.PI * 48;
+  // "Same as yesterday", and the foods you log most often, both come from recent days.
+  const previous = lastLoggedDay(store, date);
+  const sameAsLabel = previous ? (previous.date === addDays(date, -1) ? "yesterday" : dayName(previous.date)) : "";
+  const recent = withoutAlreadyThere(recentExtras(store, date), day.extras || []);
 
   /** Edit this day, snapshotting its plan the first time it's touched. */
   function updateDay(fn: (d: DayLog) => void) {
@@ -169,6 +174,21 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
             )}
             <h2 className="h2 !mb-1">Meals</h2>
             <p className="hint">Tick a meal to log everything in it, or tick single foods. Change the amount if you ate more or less.</p>
+            {!hasFood(day) && previous && (
+              <div className="flex flex-wrap items-center gap-2 rounded-[10px] px-3 py-2 mb-3" style={{ background: "var(--panel-2)" }}>
+                <span className="text-sm flex-1 min-w-[180px]">Ate the same as {sameAsLabel}? Copy that day&apos;s food over.</span>
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => updateDay((d) => {
+                    const food = foodFrom(previous);
+                    d.eaten = food.eaten;
+                    d.extras = food.extras;
+                  })}
+                >
+                  Same as {sameAsLabel}
+                </button>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2">
               {plan.meals.length === 0 && <p className="muted text-sm">This plan has no meals yet. Add some on the Plan tab.</p>}
@@ -260,6 +280,7 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
             <Extras
               extras={day.extras}
               foods={store.foods}
+              recent={recent}
               onAdd={(x) => updateDay((d) => d.extras.push(x))}
               onQty={(i, qty) => updateDay((d) => {
                 const x = d.extras[i];
@@ -328,11 +349,12 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
 function Extras(props: {
   extras: ExtraItem[];
   foods: Record<string, Food>;
+  recent: ExtraItem[];
   onAdd: (x: ExtraItem) => void;
   onQty: (i: number, qty: number) => void;
   onRemove: (i: number) => void;
 }) {
-  const { extras, foods, onAdd, onQty, onRemove } = props;
+  const { extras, foods, recent, onAdd, onQty, onRemove } = props;
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-1.5">
@@ -347,6 +369,15 @@ function Extras(props: {
           </div>
         ))}
       </div>
+      {recent.length > 0 && (
+        <div className="flex flex-wrap gap-1.5" aria-label="Foods you log often">
+          {recent.map((x, i) => (
+            <button key={i} className="btn btn-sm" title={`${fmt(x.kcal)} kcal · P ${fmt(x.p, 1)}`} onClick={() => onAdd({ ...x })}>
+              + {x.name} <span className="muted num">{fmt(x.qty)} {unitLabel(x.unit, x.qty)}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <FoodPicker mode="log" myFoods={foods} onAdd={onAdd} />
     </div>
   );
