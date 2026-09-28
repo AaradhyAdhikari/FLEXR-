@@ -16,7 +16,7 @@ Flexr is a personal fitness companion that brings together the three things most
 - **Trends** — 7/14/30-day charts (score, weight, protein, calories, carbs, fat, water, steps), insights and history
 - **Plan** — per-user diet plans, targets, meals and an editable food list
 - **Workouts** — log sets, reps and weight with last session's numbers shown, a rest timer, personal-record badges, repeat-a-workout, and per-exercise progress (top set chart, estimated 1-rep max, plateau hints). Search 870+ exercises or add your own
-- **Exercises** — a library of 876 exercises with photos, step-by-step instructions, a front/back body map of the muscles worked, Flexr's own form cues and common mistakes for 39 main lifts, and alternatives when the equipment is taken. Filter by muscle (tap the body map), equipment and level; add straight to today's workout
+- **Exercises** — a library of 876 exercises with looping animations (WorkoutX) for 580 of them, photos, step-by-step instructions, a front/back body map of the muscles worked, Flexr's own form cues and common mistakes for 39 main lifts, and alternatives when the equipment is taken. Filter by muscle (tap the body map), equipment and level; add straight to today's workout
 - **Smart targets** — enter sex, age, height, weight, activity and goal (cut / recomp / bulk) to get calories and macros (Mifflin-St Jeor); every 2 weeks a check-in compares your weight trend with what you ate and suggests adjusting by up to 250 kcal
 - **Barcode scanning** — scan packaged foods with the phone camera (or type the digits); looked up in Open Food Facts through the server
 - **Food search** — 865 Indian dishes (INDB) with per-person servings, plus live USDA search through the server; add any result to today or to your food list
@@ -44,6 +44,7 @@ Set these in Vercel (Settings → Environment Variables) and, for local runs, in
 | `SUPABASE_URL` | Supabase Project URL |
 | `SUPABASE_ANON_KEY` | Supabase publishable / anon key (safe in the browser; data is protected by RLS) |
 | `USDA_API_KEY` | USDA FoodData Central key (server-only) |
+| `WORKOUTX_API_KEY` | WorkoutX key for exercise animations (server-only) |
 
 ### 4. Run locally
 
@@ -71,6 +72,7 @@ Open http://localhost:3000.
 ## Data credits
 
 - **Indian Nutrient Databank (INDB)** — Jaacks et al., [github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-](https://github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-), CC BY 4.0. Built into `public/data/indb.json` by `scripts/build_indb.py`, which leaves out 115 dishes with implausible fat (fried recipes that count all frying oil) and 34 whose calories don't match their macros.
+- **WorkoutX** — [workoutxapp.com](https://workoutxapp.com), exercise animations, fetched through `/api/exercises/gif/<id>` so the API key stays on the server. Needs `WORKOUTX_API_KEY`; see `scripts/sync_workoutx.md`.
 - **free-exercise-db** — [github.com/yuhonas/free-exercise-db](https://github.com/yuhonas/free-exercise-db), Unlicense (public domain). Exercise names, muscles, equipment and steps built into `public/data/exercises.json` by `scripts/build_exercises.py`.
 - **Open Food Facts** — [openfoodfacts.org](https://world.openfoodfacts.org/), Open Database License (ODbL); product data is community-edited. Looked up live via `/api/foods/barcode/[code]`.
 - **USDA FoodData Central** — public domain (CC0), searched live via `/api/foods/usda` (Foundation and SR Legacy foods).

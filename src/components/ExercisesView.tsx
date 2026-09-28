@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { todayISO, uid } from "@/lib/format";
 import { Store } from "@/lib/storage";
 import { Workout } from "@/lib/types";
-import { alternatives, cap, Exercise, filterExercises, Filters, hasTips, imageUrl, loadExercises } from "@/lib/exercises";
+import { alternatives, animationUrl, cap, Exercise, filterExercises, Filters, hasTips, imageUrl, loadAnimationMap, loadExercises } from "@/lib/exercises";
 import { GENERAL_SAFETY, TIPS } from "@/lib/exerciseTips";
 import BodyMap, { MUSCLES, Muscle } from "./BodyMap";
 
@@ -28,6 +28,7 @@ type Props = {
 
 export default function ExercisesView({ store, update, lookupId, onLookupDone, onAdded }: Props) {
   const [all, setAll] = useState<Exercise[] | null>(null);
+  const [gifs, setGifs] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState(false);
   const [f, setF] = useState<Filters>(EMPTY);
   const [shown, setShown] = useState(PAGE);
@@ -38,6 +39,7 @@ export default function ExercisesView({ store, update, lookupId, onLookupDone, o
     loadExercises()
       .then((x) => live && setAll(x))
       .catch(() => live && setFailed(true));
+    loadAnimationMap().then((m) => live && setGifs(m));
     return () => { live = false; };
   }, []);
 
@@ -83,7 +85,7 @@ export default function ExercisesView({ store, update, lookupId, onLookupDone, o
 
   const open = openId && all ? all.find((e) => e.id === openId) ?? null : null;
   if (open && all) {
-    return <Detail ex={open} all={all} onBack={() => setOpenId(null)} onOpen={setOpenId} onAdd={() => addToWorkout(open)} />;
+    return <Detail ex={open} all={all} gifs={gifs} onBack={() => setOpenId(null)} onOpen={setOpenId} onAdd={() => addToWorkout(open)} />;
   }
 
   return (
@@ -156,7 +158,7 @@ export default function ExercisesView({ store, update, lookupId, onLookupDone, o
             <p className="panel text-sm muted m-0">Nothing matches those filters. Try clearing one.</p>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-              {results.slice(0, shown).map((e) => <Card key={e.id} ex={e} onOpen={() => setOpenId(e.id)} />)}
+              {results.slice(0, shown).map((e) => <Card key={e.id} ex={e} animated={!!gifs[e.id]} onOpen={() => setOpenId(e.id)} />)}
             </div>
           )}
           {results.length > shown && (
@@ -165,7 +167,7 @@ export default function ExercisesView({ store, update, lookupId, onLookupDone, o
         </>
       )}
       <p className="text-[11.5px] muted mt-4 mb-0">
-        Exercise data and photos from the free-exercise-db project (public domain). {GENERAL_SAFETY}
+        Exercise data and photos from the free-exercise-db project (public domain); animations from WorkoutX. {GENERAL_SAFETY}
       </p>
       {/* Keeps the store prop honest: counts how many of these you've logged. */}
       <span className="sr-only">{Object.keys(store.workouts ?? {}).length} workouts logged</span>
@@ -196,16 +198,37 @@ function Photo({ src, alt }: { src: string; alt: string }) {
   return <Image src={src} alt={alt} width={800} height={600} sizes="(max-width: 640px) 50vw, 320px" className="w-full h-auto" onError={() => setBroken(true)} unoptimized />;
 }
 
-function Card({ ex, onOpen }: { ex: Exercise; onOpen: () => void }) {
+/** Looping demonstration from WorkoutX, fetched through our own route. */
+function Animation({ src, name }: { src: string; name: string }) {
+  const [state, setState] = useState<"loading" | "ok" | "failed">("loading");
+  if (state === "failed") return null; // the photos below still explain the movement
+  return (
+    <figure className="panel !p-0 overflow-hidden m-0 mb-4">
+      <div className="relative w-full" style={{ background: "var(--panel-2)", aspectRatio: "1 / 1", maxHeight: 420 }}>
+        {state === "loading" && <span className="absolute inset-0 grid place-items-center text-sm muted">Loading animation…</span>}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={`${name} demonstrated`} className="absolute inset-0 w-full h-full object-contain"
+          style={{ opacity: state === "ok" ? 1 : 0, transition: "opacity .2s" }}
+          onLoad={() => setState("ok")} onError={() => setState("failed")} />
+      </div>
+      <figcaption className="text-xs muted px-2.5 py-1.5">Animation from WorkoutX</figcaption>
+    </figure>
+  );
+}
+
+function Card({ ex, animated, onOpen }: { ex: Exercise; animated?: boolean; onOpen: () => void }) {
   return (
     <button className="panel !p-0 overflow-hidden text-left flex flex-col" onClick={onOpen}>
       <div className="relative w-full" style={{ aspectRatio: "4 / 3", background: "var(--panel-2)" }}>
         <Thumb ex={ex} className="w-full h-full object-cover" sizes="(max-width: 640px) 50vw, 240px" />
-        {hasTips(ex.id) && (
-          <span className="absolute top-1.5 left-1.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--accent)", color: "var(--accent-ink)" }}>
-            Form cues
-          </span>
-        )}
+        <div className="absolute top-1.5 left-1.5 flex gap-1">
+          {hasTips(ex.id) && (
+            <span className="text-[10.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--accent)", color: "var(--accent-ink)" }}>Form cues</span>
+          )}
+          {animated && (
+            <span className="text-[10.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--ink)", color: "var(--bg)" }}>▶ Animated</span>
+          )}
+        </div>
       </div>
       <div className="px-3 py-2.5">
         <div className="text-sm font-bold leading-tight">{ex.n}</div>
@@ -215,8 +238,9 @@ function Card({ ex, onOpen }: { ex: Exercise; onOpen: () => void }) {
   );
 }
 
-function Detail({ ex, all, onBack, onOpen, onAdd }: { ex: Exercise; all: Exercise[]; onBack: () => void; onOpen: (id: string) => void; onAdd: () => void }) {
+function Detail({ ex, all, gifs, onBack, onOpen, onAdd }: { ex: Exercise; all: Exercise[]; gifs: Record<string, string>; onBack: () => void; onOpen: (id: string) => void; onAdd: () => void }) {
   const tips = TIPS[ex.id];
+  const wx = gifs[ex.id];
   const alts = useMemo(() => alternatives(all, ex), [all, ex]);
   const [added, setAdded] = useState(false);
 
@@ -239,6 +263,8 @@ function Detail({ ex, all, onBack, onOpen, onAdd }: { ex: Exercise; all: Exercis
           </button>
         </div>
       </div>
+
+      {wx && <Animation src={animationUrl(wx)} name={ex.n} />}
 
       {ex.img.length > 0 && (
         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -291,7 +317,7 @@ function Detail({ ex, all, onBack, onOpen, onAdd }: { ex: Exercise; all: Exercis
           <h2 className="h2">Other ways to train {cap(ex.pm[0] ?? "this")}</h2>
           <p className="hint">Handy when the machine is taken or you don&apos;t have the equipment.</p>
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            {alts.map((a) => <Card key={a.id} ex={a} onOpen={() => onOpen(a.id)} />)}
+            {alts.map((a) => <Card key={a.id} ex={a} animated={!!gifs[a.id]} onOpen={() => onOpen(a.id)} />)}
           </div>
         </div>
       )}

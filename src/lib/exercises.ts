@@ -21,6 +21,20 @@ export const imageUrl = (path: string) => IMG_BASE + path.split("/").map(encodeU
 
 export const hasTips = (id: string) => id in TIPS;
 
+/** Animation for an exercise, served through our own route (the key stays server-side). */
+export const animationUrl = (workoutxId: string) => `/api/exercises/gif/${workoutxId}`;
+
+let gifCache: Promise<Record<string, string>> | null = null;
+/** Map of our exercise id -> WorkoutX id, built by scripts/sync_workoutx.md. */
+export function loadAnimationMap(): Promise<Record<string, string>> {
+  if (!gifCache) {
+    gifCache = fetch("/data/exercise-gifs.json")
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({})); // animations are a bonus; photos still work
+  }
+  return gifCache;
+}
+
 let cache: Promise<Exercise[]> | null = null;
 export function loadExercises(): Promise<Exercise[]> {
   if (!cache) {
