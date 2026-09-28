@@ -27,11 +27,29 @@ function useNow(ms: number) {
 
 const minutes = (from: string, to: string | number) => Math.max(0, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 60000));
 
-export default function WorkoutsView({ store, update }: { store: Store; update: Update }) {
+type ViewProps = {
+  store: Store;
+  update: Update;
+  /** Set when another tab (the exercise library) wants a workout opened. */
+  openWorkoutId?: string | null;
+  onOpened?: () => void;
+  /** Ask the library to show how an exercise is done. */
+  onHowTo?: (exerciseId: string) => void;
+};
+
+export default function WorkoutsView({ store, update, openWorkoutId, onOpened, onHowTo }: ViewProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ key: string; name: string } | null>(null);
   const [summary, setSummary] = useState<string>("");
   const workouts = store.workouts ?? {};
+
+  useEffect(() => {
+    if (!openWorkoutId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOpenId(openWorkoutId);
+    setProgress(null);
+    onOpened?.();
+  }, [openWorkoutId, onOpened]);
 
   function editWorkout(id: string, fn: (w: Workout) => void) {
     update((s) => {
@@ -100,6 +118,7 @@ export default function WorkoutsView({ store, update }: { store: Store; update: 
         }}
         onDelete={() => remove(open.id)}
         onProgress={(key, name) => setProgress({ key, name })}
+        onHowTo={onHowTo}
       />
     );
   }
@@ -199,8 +218,9 @@ function WorkoutEditor(props: {
   onFinish: () => void;
   onDelete: () => void;
   onProgress: (key: string, name: string) => void;
+  onHowTo?: (exerciseId: string) => void;
 }) {
-  const { store, workout: w, edit, onBack, onFinish, onDelete, onProgress } = props;
+  const { store, workout: w, edit, onBack, onFinish, onDelete, onProgress, onHowTo } = props;
   const all = store.workouts ?? {};
   const [restEnd, setRestEnd] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -261,6 +281,7 @@ function WorkoutEditor(props: {
             onChange={(fn) => edit((d) => fn(d.exercises[xi]))}
             onRemove={() => edit((d) => { d.exercises.splice(xi, 1); })}
             onProgress={() => onProgress(exerciseKey(ex), ex.name)}
+            onHowTo={ex.exerciseId && onHowTo ? () => onHowTo(ex.exerciseId!) : undefined}
             onSetDone={() => setRestEnd(Date.now() + REST_SECONDS * 1000)}
           />
         ))}
@@ -314,9 +335,10 @@ function ExerciseCard(props: {
   onChange: (fn: (e: WorkoutExercise) => void) => void;
   onRemove: () => void;
   onProgress: () => void;
+  onHowTo?: () => void;
   onSetDone: () => void;
 }) {
-  const { all, workout, ex, onChange, onRemove, onProgress, onSetDone } = props;
+  const { all, workout, ex, onChange, onRemove, onProgress, onHowTo, onSetDone } = props;
   const key = exerciseKey(ex);
   const prev = previousSets(all, workout, key);
   const cell = "px-1.5 py-1.5";
@@ -344,6 +366,9 @@ function ExerciseCard(props: {
           <div className="font-bold leading-tight">{ex.name}</div>
           <div className="text-xs muted">{ex.muscles.map(cap).join(", ") || "Custom exercise"} · <span style={{ color: "var(--accent)" }}>progress ›</span></div>
         </button>
+        {onHowTo && (
+          <button className="btn btn-sm" onClick={onHowTo} title={`How to do ${ex.name}`}>How to</button>
+        )}
         <button className="btn btn-sm btn-ghost" onClick={onRemove} aria-label={`Remove ${ex.name}`}>✕</button>
       </div>
       <table className="w-full text-sm num border-collapse">

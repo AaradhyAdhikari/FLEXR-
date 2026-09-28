@@ -23,6 +23,13 @@
   --good-bg: #e3f1e6;
   --warn-bg: #f8edd4;
   --bad-bg: #f7e1dc;
+  /* Body map */
+  --muscle-skin: #dfe3da;
+  --muscle-idle: #cdd4c8;
+  --muscle-secondary: #8fbfa5;
+  --muscle-primary: #1f6b52;
+  --muscle-line: #b3bcb1;
+  --muscle-text: #5e6960;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -49,6 +56,12 @@
     --good-bg: #1d3325;
     --warn-bg: #3a3019;
     --bad-bg: #3d211c;
+    --muscle-skin: #2b322c;
+    --muscle-idle: #39423a;
+    --muscle-secondary: #2f5f4a;
+    --muscle-primary: #4fb58c;
+    --muscle-line: #4a544c;
+    --muscle-text: #9aa69c;
   }
 }
 
@@ -190,6 +203,18 @@ button {
   font-weight: 600;
   font-size: 14px;
   color: var(--muted);
+  white-space: nowrap;
+}
+
+/* The tab bar scrolls sideways on small phones rather than pushing the page wide. */
+.seg-scroll {
+  display: flex;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.seg-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .seg button[aria-pressed="true"],

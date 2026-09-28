@@ -12,10 +12,11 @@ import DayView from "./DayView";
 import TrendsView from "./TrendsView";
 import PlanView from "./PlanView";
 import WorkoutsView from "./WorkoutsView";
+import ExercisesView from "./ExercisesView";
 import ProfileSetup from "./ProfileSetup";
 
-type Tab = "day" | "workouts" | "trends" | "plan";
-const TABS: [Tab, string][] = [["day", "Day"], ["workouts", "Workouts"], ["trends", "Trends"], ["plan", "Plan"]];
+type Tab = "day" | "workouts" | "exercises" | "trends" | "plan";
+const TABS: [Tab, string][] = [["day", "Day"], ["workouts", "Workouts"], ["exercises", "Exercises"], ["trends", "Trends"], ["plan", "Plan"]];
 type SyncStatus = "local" | "saved" | "saving" | "error" | "needs-update";
 type Update = (fn: (s: Store) => Store) => void;
 
@@ -325,6 +326,11 @@ function Dashboard(props: {
   const [tab, setTab] = useState<Tab>("day");
   const [date, setDate] = useState(todayISO());
   const [range, setRange] = useState<7 | 14 | 30>(14);
+  // Jumping between the two tabs: open a workout, or look an exercise up.
+  const [openWorkout, setOpenWorkout] = useState<string | null>(null);
+  const [lookup, setLookup] = useState<string | null>(null);
+  const clearOpenWorkout = useCallback(() => setOpenWorkout(null), []);
+  const clearLookup = useCallback(() => setLookup(null), []);
   const dot = status === "error" || status === "needs-update" ? "var(--bad)" : status === "saving" ? "var(--warn)" : status === "saved" ? "var(--good)" : "var(--faint)";
 
   return (
@@ -344,7 +350,7 @@ function Dashboard(props: {
             </p>
           </div>
         </div>
-        <nav className="seg" role="tablist" aria-label="Sections">
+        <nav className="seg seg-scroll" role="tablist" aria-label="Sections">
           {TABS.map(([t, label]) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{label}</button>
           ))}
@@ -378,7 +384,24 @@ function Dashboard(props: {
       {tab === "trends" && (
         <TrendsView store={store} range={range} setRange={setRange} openDay={(d) => { setDate(d); setTab("day"); }} />
       )}
-      {tab === "workouts" && <WorkoutsView store={store} update={update} />}
+      {tab === "workouts" && (
+        <WorkoutsView
+          store={store}
+          update={update}
+          openWorkoutId={openWorkout}
+          onOpened={clearOpenWorkout}
+          onHowTo={(id) => { setLookup(id); setTab("exercises"); }}
+        />
+      )}
+      {tab === "exercises" && (
+        <ExercisesView
+          store={store}
+          update={update}
+          lookupId={lookup}
+          onLookupDone={clearLookup}
+          onAdded={(id) => { setOpenWorkout(id); setTab("workouts"); }}
+        />
+      )}
       {tab === "plan" && <PlanView store={store} update={update} profileAge={age} />}
     </div>
   );

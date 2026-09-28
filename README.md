@@ -16,6 +16,7 @@ Flexr is a personal fitness companion that brings together the three things most
 - **Trends** — 7/14/30-day charts (score, weight, protein, calories, carbs, fat, water, steps), insights and history
 - **Plan** — per-user diet plans, targets, meals and an editable food list
 - **Workouts** — log sets, reps and weight with last session's numbers shown, a rest timer, personal-record badges, repeat-a-workout, and per-exercise progress (top set chart, estimated 1-rep max, plateau hints). Search 870+ exercises or add your own
+- **Exercises** — a library of 876 exercises with photos, step-by-step instructions, a front/back body map of the muscles worked, Flexr's own form cues and common mistakes for 39 main lifts, and alternatives when the equipment is taken. Filter by muscle (tap the body map), equipment and level; add straight to today's workout
 - **Smart targets** — enter sex, age, height, weight, activity and goal (cut / recomp / bulk) to get calories and macros (Mifflin-St Jeor); every 2 weeks a check-in compares your weight trend with what you ate and suggests adjusting by up to 250 kcal
 - **Barcode scanning** — scan packaged foods with the phone camera (or type the digits); looked up in Open Food Facts through the server
 - **Food search** — 865 Indian dishes (INDB) with per-person servings, plus live USDA search through the server; add any result to today or to your food list
@@ -59,11 +60,10 @@ Open http://localhost:3000.
 - [x] Diet plans per user
 - [x] Trends and history
 - [x] Supabase auth (email) and database
-- [ ] Exercise library with form cues / common mistakes
 - [x] Step count tracking (manual entry)
 - [x] Daily dashboard tying it all together
 - [x] Food search: INDB Indian dishes + live USDA
-- [ ] Exercise library (free-exercise-db)
+- [x] Exercise library with photos, form cues and common mistakes (free-exercise-db)
 - [x] Barcode scanning (Open Food Facts)
 - [x] Smart targets with 2-week weight-trend check-ins
 - [x] Workout logging, history and progress
