@@ -33,7 +33,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
       headers: { "X-WorkoutX-Key": KEY, Accept: "image/gif" },
       next: { revalidate: YEAR },
     });
-    if (res.status === 404) return NextResponse.json({ error: "No animation for that exercise." }, { status: 404 });
+    // 404 (no such file) and 503 (animation missing upstream) both mean "no animation here".
+    if (res.status === 404 || res.status === 503) return NextResponse.json({ error: "No animation for that exercise." }, { status: 404 });
     if (res.status === 429) return NextResponse.json({ error: "Animation limit reached for now." }, { status: 429 });
     if (!res.ok) return NextResponse.json({ error: "Couldn't fetch the animation." }, { status: 502 });
     const body = await res.arrayBuffer();
