@@ -20,7 +20,7 @@ export function daysCsv(store: Store): string {
   const dates = Object.keys(store.days).sort();
   const rows: unknown[][] = [[
     "date", "plan", "kcal", "kcal_target", "protein_g", "protein_target_g", "carbs_g", "carbs_target_g",
-    "fat_g", "fat_target_g", "water_l", "steps", "weight_kg", "gym", "score", "notes",
+    "fat_g", "fat_target_g", "water_l", "steps", "sleep_h", "weight_kg", "gym", "score", "notes",
   ]];
   for (const d of dates) {
     const log = store.days[d];
@@ -31,7 +31,7 @@ export function daysCsv(store: Store): string {
     rows.push([
       d, plan.name, Math.round(res.kcal), Math.round(t.kcal || planTotals(plan, store.foods).kcal),
       r1(res.p), t.protein, r1(res.c), t.carbs, r1(res.f), t.fat,
-      r1(log.water), log.steps ?? "", r1(log.weight), log.workout ? "yes" : "no", res.logged ? res.score : "", log.notes || "",
+      r1(log.water), log.steps ?? "", r1(log.sleep), r1(log.weight), log.workout ? "yes" : "no", res.logged ? res.score : "", log.notes || "",
     ]);
   }
   return toCsv(rows);
@@ -80,6 +80,7 @@ export type WeekSummary = {
   sets: number;
   volumeKg: number;
   avgSteps: number | null;
+  avgSleep: number | null;
   weightChange: number | null;
   avgScore: number | null;
   bestLift: { name: string; weight: number; reps: number } | null;
@@ -93,6 +94,7 @@ export function weekSummary(store: Store, endDate = todayISO()): WeekSummary {
   const kcalTarget = Math.round(plan.targets.kcal || planTotals(plan, store.foods).kcal);
 
   const kcal: number[] = [], protein: number[] = [], steps: number[] = [], scores: number[] = [];
+  const sleep: number[] = [];
   for (const d of dates) {
     const log = store.days[d];
     if (!log) continue;
@@ -103,6 +105,7 @@ export function weekSummary(store: Store, endDate = todayISO()): WeekSummary {
       if (res.score != null) scores.push(res.score);
     }
     if (log.steps != null) steps.push(log.steps);
+    if (log.sleep != null && log.sleep > 0) sleep.push(log.sleep);
   }
 
   const weights = dates.map((d) => store.days[d]?.weight).filter((w): w is number => !!w && w > 0);
@@ -142,6 +145,7 @@ export function weekSummary(store: Store, endDate = todayISO()): WeekSummary {
     sets,
     volumeKg: Math.round(volume),
     avgSteps: mean(steps),
+    avgSleep: sleep.length ? Math.round((mean(sleep) as number) * 10) / 10 : null,
     weightChange: nowW != null && thenW != null ? nowW - thenW : null,
     avgScore: scores.length ? Math.round(mean(scores) as number) : null,
     bestLift: best,

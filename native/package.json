@@ -2,7 +2,7 @@
   "name": "flexr-shell",
   "version": "0.1.0",
   "private": true,
-  "description": "Phone shell for Flexr: loads the deployed app and adds step sync from Health Connect / Apple Health.",
+  "description": "Phone shell for Flexr: loads the deployed app and adds step and sleep sync from Health Connect / Apple Health.",
   "scripts": {
     "add:android": "cap add android",
     "add:ios": "cap add ios",
@@ -14,7 +14,7 @@
     "@capacitor/android": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
-    "capacitor-health": "^8.4.0"
+    "@capgo/capacitor-health": "^8.11.4"
   },
   "devDependencies": {
     "@capacitor/cli": "^8.0.0"

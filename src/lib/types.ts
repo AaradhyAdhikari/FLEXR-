@@ -87,6 +87,7 @@ export type DayLog = {
   extras: ExtraItem[];
   water: number | null;
   steps: number | null;
+  sleep?: number | null; // hours slept the night before, 1 dp
   weight: number | null;
   measures?: Record<string, number>; // tape measurements in cm, by key
   workout: boolean;

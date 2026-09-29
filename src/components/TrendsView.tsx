@@ -2,6 +2,7 @@
 
 import { addDays, avg, fmt, shortDate, todayISO } from "@/lib/format";
 import { computeDay, DayResult, itemKey, MeterKey, planTotals, statusOf } from "@/lib/macros";
+import { sleepOn, sleepSummary } from "@/lib/sleep";
 import { planForDay, Store } from "@/lib/storage";
 import { workoutsOn } from "@/lib/workouts";
 import { Chart, scoreTone, toneBg, toneColor, Tone } from "./ui";
@@ -44,6 +45,9 @@ export default function TrendsView({ store, range, setRange, openDay }: Props) {
   const prev7 = avg(wDays.slice(-14, -7).map(weightOf));
   const wChange = last7 != null && prev7 != null ? last7 - prev7 : null;
 
+  const sleep = sleepSummary(store, range, today);
+  const sleepSeries = days.map((d) => sleepOn(store, d));
+
   const avgScoreRaw = avg(logged.map((r) => r.score));
   const avgScore = avgScoreRaw == null ? null : Math.round(avgScoreRaw);
   const proteinHit = logged.filter((r) => (r.pct.p ?? 0) >= 90).length;
@@ -75,6 +79,12 @@ export default function TrendsView({ store, range, setRange, openDay }: Props) {
         />
         <Kpi label="Protein goal hit" value={String(proteinHit)} unit={`/ ${logged.length}`} sub={`days at 90%+ of ${fmt(tgt.protein)} g`} />
         <Kpi label="Avg steps" value={fmt(avg(logged.map((r) => r.steps)))} sub={`goal ${fmt(tgt.steps)}`} />
+        <Kpi
+          label="Avg sleep"
+          value={sleep.average == null ? "–" : fmt(sleep.average, 1)}
+          unit={sleep.average == null ? undefined : "h"}
+          sub={sleep.nights === 0 ? "No nights recorded yet" : `${sleep.nights} nights · ${sleep.short} under 7 h`}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
@@ -101,6 +111,9 @@ export default function TrendsView({ store, range, setRange, openDay }: Props) {
         </ChartPanel>
         <ChartPanel title="Steps">
           <Chart label="Steps" days={days} values={series((r) => r.steps)} color="var(--step)" target={tgt.steps} />
+        </ChartPanel>
+        <ChartPanel title="Sleep" note="hours a night">
+          <Chart label="Sleep" days={days} values={sleepSeries} color="var(--muted)" target={7} dec={1} />
         </ChartPanel>
       </div>
 
@@ -180,6 +193,18 @@ function Insights(props: { store: Store; days: string[]; results: (DayResult | n
         </>
       ),
     });
+
+  const sleep = sleepSummary(store, days.length, today);
+  if (sleep.nights >= 3 && sleep.average != null) {
+    const bad = sleep.average < 7;
+    out.push({
+      tag: "Sleep",
+      tone: bad ? "warn" : "good",
+      body: bad
+        ? `${fmt(sleep.average, 1)} h a night across ${sleep.nights} nights, ${sleep.short} of them under 7 h. Short sleep shows up as worse lifts and a bigger appetite before it shows up anywhere else.`
+        : `${fmt(sleep.average, 1)} h a night across ${sleep.nights} nights — enough to recover on.`,
+    });
+  }
 
   const names: Record<MeterKey, string> = { p: "protein", c: "carbs", f: "fat", water: "water", steps: "steps" };
   const rates = (Object.keys(names) as MeterKey[])

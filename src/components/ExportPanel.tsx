@@ -85,12 +85,22 @@ function drawCard(canvas: HTMLCanvasElement, s: WeekSummary) {
   tile(
     72,
     top + (H + 24) * 2,
-    W * 2 + 24,
+    W,
     H,
     "Weight",
     s.weightChange == null ? "—" : `${s.weightChange > 0 ? "+" : "−"}${Math.abs(s.weightChange).toFixed(2)} kg`,
-    s.weightChange == null ? "weigh in a few mornings to see the trend" : "change against the week before",
+    s.weightChange == null ? "weigh in a few mornings" : "against the week before",
     p.wt
+  );
+  tile(
+    72 + W + 24,
+    top + (H + 24) * 2,
+    W,
+    H,
+    "Sleep a night",
+    s.avgSleep == null ? "—" : `${fmt(s.avgSleep, 1)} h`,
+    s.avgSleep == null ? "no nights recorded" : s.avgSleep >= 7 ? "enough to recover on" : "short of 7 h",
+    p.muted
   );
 
   // Footer: the best set of the week, if there was one.
@@ -164,6 +174,7 @@ export default function ExportPanel({ store }: { store: Store }) {
               <li>Protein a day: <b className="num">{summary.avgProtein == null ? "—" : `${fmt(summary.avgProtein)} g`}</b> of {summary.proteinTarget} g</li>
               <li>Workouts: <b className="num">{summary.workouts}</b> · {summary.sets} sets · {fmt(summary.volumeKg)} kg lifted</li>
               <li>Steps a day: <b className="num">{summary.avgSteps == null ? "—" : fmt(summary.avgSteps)}</b></li>
+              <li>Sleep a night: <b className="num">{summary.avgSleep == null ? "—" : `${fmt(summary.avgSleep, 1)} h`}</b></li>
               <li>Weight: <b className="num">{summary.weightChange == null ? "—" : `${summary.weightChange > 0 ? "+" : "−"}${Math.abs(summary.weightChange).toFixed(2)} kg`}</b> on the week before</li>
             </ul>
           )}

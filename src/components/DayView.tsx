@@ -2,10 +2,11 @@
 
 import { addDays, dayName, fmt, longDate, todayISO, unitLabel } from "@/lib/format";
 import { computeDay, gradeOf, itemKey, macFor, mealTotals, sumMac } from "@/lib/macros";
+import { sleepNote, sleepSummary } from "@/lib/sleep";
 import { emptyDay, planForDay, Store } from "@/lib/storage";
 import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
 import FoodPicker from "./FoodPicker";
-import StepsSync from "./StepsSync";
+import HealthSync from "./HealthSync";
 import BodyPanel from "./BodyPanel";
 import { foodFrom, hasFood, lastLoggedDay, recentExtras, withoutAlreadyThere } from "@/lib/repeat";
 import { workoutsOn } from "@/lib/workouts";
@@ -39,6 +40,7 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
   const r = computeDay(day, plan, store.foods, date < today);
   const grade = gradeOf(r.score);
   const logged = workoutsOn(store.workouts, date);
+  const sleep = sleepSummary(store, 7, date);
   const circ = 2 * Math.PI * 48;
   // "Same as yesterday", and the foods you log most often, both come from recent days.
   const previous = lastLoggedDay(store, date);
@@ -310,7 +312,7 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
                   <NumInput id="steps" className="input num flex-1 !min-w-[70px]" step={100} min={0} inputMode="numeric" value={day.steps} onChange={(v) => updateDay((d) => { d.steps = v; })} />
                   <button className="btn btn-sm" onClick={() => updateDay((d) => { d.steps = (d.steps || 0) + 1000; })}>+1k</button>
                 </div>
-                <StepsSync update={update} />
+                <HealthSync update={update} />
               </div>
             </div>
           </div>
@@ -321,6 +323,19 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
               <div>
                 <label className="label" htmlFor="weight">Morning weight (kg)</label>
                 <NumInput id="weight" step={0.1} min={0} value={day.weight} placeholder="After toilet, before food" onChange={(v) => updateDay((d) => { d.weight = v; })} />
+              </div>
+              <div>
+                <label className="label" htmlFor="sleep">Sleep last night (h)</label>
+                <NumInput
+                  id="sleep"
+                  step={0.5}
+                  min={0}
+                  max={20}
+                  value={day.sleep ?? null}
+                  placeholder="e.g. 7.5"
+                  onChange={(v) => updateDay((d) => { d.sleep = v == null || v <= 0 ? null : Math.round(v * 10) / 10; })}
+                />
+                {sleep.average != null && <p className="text-[11.5px] muted m-0 mt-1">{sleepNote(sleep)}</p>}
               </div>
               <div className="flex items-end">
                 {logged.length ? (
