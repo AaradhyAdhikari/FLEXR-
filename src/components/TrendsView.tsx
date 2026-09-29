@@ -8,15 +8,17 @@ import { workoutsOn } from "@/lib/workouts";
 import { Chart, scoreTone, toneBg, toneColor, Tone } from "./ui";
 import ExportPanel from "./ExportPanel";
 import MuscleWeek from "./MuscleWeek";
+import MoneyPanel from "./MoneyPanel";
 
 type Props = {
   store: Store;
+  update: (fn: (s: Store) => Store) => void;
   range: 7 | 14 | 30;
   setRange: (r: 7 | 14 | 30) => void;
   openDay: (date: string) => void;
 };
 
-export default function TrendsView({ store, range, setRange, openDay }: Props) {
+export default function TrendsView({ store, update, range, setRange, openDay }: Props) {
   const today = todayISO();
   const days: string[] = [];
   for (let i = range - 1; i >= 0; i--) days.push(addDays(today, -i));
@@ -122,6 +124,7 @@ export default function TrendsView({ store, range, setRange, openDay }: Props) {
           <h2 className="h2">What the data says</h2>
           <Insights store={store} days={days} results={results} logged={logged} wChange={wChange} today={today} />
         </div>
+        <MoneyPanel store={store} update={update} range={range} today={today} />
         <MuscleWeek store={store} today={today} />
         <div className="panel">
           <h2 className="h2">

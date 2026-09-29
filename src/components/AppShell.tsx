@@ -447,7 +447,7 @@ function Dashboard(props: {
 
       {tab === "day" && <DayView store={store} update={update} date={date} setDate={setDate} onOpenPlan={() => setTab("plan")} />}
       {tab === "trends" && (
-        <TrendsView store={store} range={range} setRange={setRange} openDay={(d) => { setDate(d); setTab("day"); }} />
+        <TrendsView store={store} update={update} range={range} setRange={setRange} openDay={(d) => { setDate(d); setTab("day"); }} />
       )}
       {tab === "workouts" && (
         <WorkoutsView

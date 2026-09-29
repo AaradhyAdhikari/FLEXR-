@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { fmt, todayISO, uid, unitLabel } from "@/lib/format";
 import { macFor, mealTotals, planTotals } from "@/lib/macros";
+import { CURRENCY, money, perDay, planCost } from "@/lib/money";
 import { Store } from "@/lib/storage";
 import { Food, Plan, Targets } from "@/lib/types";
 import RemindersPanel from "./RemindersPanel";
@@ -50,6 +51,7 @@ export default function PlanView({ store, update, profileAge, userId }: Props) {
   // null = not building anything; { food } = editing that dish; { food: null } = new dish
   const [recipeFor, setRecipeFor] = useState<{ food: Food | null } | null>(null);
   const pt = planTotals(plan, store.foods);
+  const planPrice = planCost(plan, store.foods);
 
   function editPlan(fn: (p: Plan) => void) {
     update((s) => {
@@ -205,6 +207,50 @@ export default function PlanView({ store, update, profileAge, userId }: Props) {
               </div>
             ))}
           </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+            <div>
+              <label className="label" htmlFor="budget">Food budget</label>
+              <NumInput
+                id="budget"
+                className="input num"
+                min={0}
+                step={50}
+                value={plan.budget?.amount ?? null}
+                placeholder="optional"
+                aria-label="Food budget amount"
+                onChange={(v) => editPlan((p) => {
+                  if (!v || v <= 0) delete p.budget;
+                  else p.budget = { amount: Math.round(v), per: p.budget?.per ?? "week" };
+                })}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="budget-per">Per</label>
+              <select
+                id="budget-per"
+                className="input"
+                value={plan.budget?.per ?? "week"}
+                aria-label="Budget period"
+                onChange={(e) => editPlan((p) => {
+                  const per = e.target.value as "day" | "week" | "month";
+                  if (p.budget) p.budget.per = per;
+                  else p.budget = { amount: 0, per };
+                })}
+              >
+                <option value="day">day</option>
+                <option value="week">week</option>
+                <option value="month">month</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <p className="text-[11.5px] muted m-0">
+                {plan.budget?.amount
+                  ? `${money(perDay(plan.budget) ?? 0)} a day. This plan costs ${planPrice.total > 0 ? money(planPrice.total) : "–"} a day as written${planPrice.missing.length ? ` (${planPrice.missing.length} food${planPrice.missing.length === 1 ? "" : "s"} unpriced)` : ""}.`
+                  : "Set one and Flexr will plan food around it."}
+              </p>
+            </div>
+          </div>
+
           <div className="flex gap-2 flex-wrap mt-3.5">
             {plan.id !== store.activePlanId && <button className="btn btn-primary" onClick={activate}>Use this plan from today</button>}
             <button
@@ -310,10 +356,11 @@ export default function PlanView({ store, update, profileAge, userId }: Props) {
         )}
         <p className="hint">
           Macros per amount. Eggs, bananas and rotis are per 1 piece; rice, dal and chicken per 100 g; milk per 100 ml. “Step” is how much the +/− buttons change. Check packaged foods against their labels.
+          The {CURRENCY} box is what that same amount costs you — fill it in for the foods you buy often and Flexr can tell you what your diet costs and how to eat it for less.
         </p>
         <div className="flex flex-col gap-2">
           {foods.map((f) => (
-            <div key={f.id} className="grid grid-cols-4 md:grid-cols-[minmax(0,2.2fr)_repeat(7,minmax(0,1fr))_auto] gap-1.5 items-end border-b pb-2" style={{ borderColor: "var(--line)" }}>
+            <div key={f.id} className="grid grid-cols-4 md:grid-cols-[minmax(0,2.2fr)_repeat(8,minmax(0,1fr))_auto] gap-1.5 items-end border-b pb-2" style={{ borderColor: "var(--line)" }}>
               <div className="col-span-4 md:col-span-1">
                 <small className="label !text-[10.5px] !mb-0.5">Food</small>
                 <input className="input !py-1.5 text-[13.5px]" type="text" maxLength={60} value={f.name} onChange={(e) => editFood(f.id, { name: e.target.value })} aria-label="Food name" />
@@ -329,6 +376,18 @@ export default function PlanView({ store, update, profileAge, userId }: Props) {
                     onChange={(v) => editFood(f.id, { [k]: (k === "per" || k === "step") ? (v && v > 0 ? v : 1) : (v ?? 0) })} />
                 </div>
               ))}
+              <div>
+                <small className="label !text-[10.5px] !mb-0.5" title={`What ${f.per} ${f.unit} costs you`}>{CURRENCY}</small>
+                <NumInput
+                  className="input num !py-1.5 text-[13.5px]"
+                  min={0}
+                  step={1}
+                  value={f.price ?? null}
+                  placeholder="–"
+                  aria-label={`${f.name} price`}
+                  onChange={(v) => editFood(f.id, { price: v && v > 0 ? Math.round(v * 100) / 100 : undefined })}
+                />
+              </div>
               <div className="flex gap-1">
                 {isRecipe(f) && (
                   <button className="btn btn-sm" aria-label={`Edit ${f.name} ingredients`} title={ingredientLine(f.recipe!)} onClick={() => setRecipeFor({ food: f })}>Dish</button>

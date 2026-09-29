@@ -2,6 +2,7 @@
 
 import { addDays, dayName, fmt, longDate, todayISO, unitLabel } from "@/lib/format";
 import { computeDay, gradeOf, itemKey, macFor, mealTotals, sumMac } from "@/lib/macros";
+import { CURRENCY } from "@/lib/money";
 import { sleepNote, sleepSummary } from "@/lib/sleep";
 import { emptyDay, planForDay, Store } from "@/lib/storage";
 import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
@@ -291,6 +292,12 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
                 const k = qty / (x.qty || 1);
                 d.extras[i] = { ...x, qty, kcal: x.kcal * k, p: x.p * k, c: x.c * k, f: x.f * k };
               })}
+              onCost={(i, cost) => updateDay((d) => {
+                const x = d.extras[i];
+                if (!x) return;
+                if (cost == null) delete x.cost;
+                else x.cost = cost;
+              })}
               onRemove={(i) => updateDay((d) => d.extras.splice(i, 1))}
             />
           </div>
@@ -369,9 +376,10 @@ function Extras(props: {
   recent: ExtraItem[];
   onAdd: (x: ExtraItem) => void;
   onQty: (i: number, qty: number) => void;
+  onCost: (i: number, cost: number | null) => void;
   onRemove: (i: number) => void;
 }) {
-  const { extras, foods, recent, onAdd, onQty, onRemove } = props;
+  const { extras, foods, recent, onAdd, onQty, onCost, onRemove } = props;
   return (
     <div className="flex flex-col gap-2.5">
       <div className="flex flex-col gap-1.5">
@@ -382,6 +390,15 @@ function Extras(props: {
             <span className="num muted text-xs mr-auto sm:mr-0">{fmt(x.kcal)} kcal · P{fmt(x.p)}</span>
             <NumInput className="no-spin input num !w-16 !py-1 text-center" min={0} value={x.qty} onChange={(v) => v != null && v > 0 && onQty(i, v)} aria-label={`${x.name} amount`} />
             <span className="text-xs muted">{unitLabel(x.unit, x.qty)}</span>
+            <span className="text-xs muted">{CURRENCY}</span>
+            <NumInput
+              className="no-spin input num !w-16 !py-1 text-center"
+              min={0}
+              value={x.cost ?? null}
+              placeholder="–"
+              aria-label={`${x.name} cost`}
+              onChange={(v) => onCost(i, v && v > 0 ? Math.round(v * 100) / 100 : null)}
+            />
             <button className="btn btn-sm btn-ghost" onClick={() => onRemove(i)} aria-label={`Remove ${x.name}`}>✕</button>
           </div>
         ))}

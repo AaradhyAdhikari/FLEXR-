@@ -38,6 +38,7 @@ export type Food = {
   source?: "INDB" | "USDA" | "OFF" | "Mine"; // where the numbers came from, if added from a database
   sourceId?: string; // e.g. "indb:ASC152"
   gramsPerUnit?: number; // e.g. 1 bowl = 296 g
+  price?: number; // what `per` of this costs, in your currency. Unset = not priced yet.
   recipe?: Recipe; // set when this food is a dish built from ingredients
 };
 
@@ -61,10 +62,17 @@ export type Targets = {
   steps: number;
 };
 
+/** What you're willing to spend on food. */
+export type Budget = {
+  amount: number;
+  per: "day" | "week" | "month";
+};
+
 export type Plan = {
   id: string;
   name: string;
   targets: Targets;
+  budget?: Budget; // unset = no budget set
   meals: Meal[];
   smart?: import("./targets").SmartSettings; // set when targets come from Smart targets
 };
@@ -77,6 +85,7 @@ export type ExtraItem = {
   p: number;
   c: number;
   f: number;
+  cost?: number; // what it cost you, if it cost anything
 };
 
 export type DayLog = {
