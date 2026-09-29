@@ -11,13 +11,14 @@ import { diffStores, fullDiff, isEmptyDiff } from "@/lib/sync";
 import DayView from "./DayView";
 import TrendsView from "./TrendsView";
 import PlanView from "./PlanView";
+import CoachPanel from "./CoachPanel";
 import WorkoutsView from "./WorkoutsView";
 import ExercisesView from "./ExercisesView";
 import ProfileSetup from "./ProfileSetup";
 import { OfflineBadge } from "./Offline";
 
-type Tab = "day" | "workouts" | "exercises" | "trends" | "plan";
-const TABS: [Tab, string][] = [["day", "Day"], ["workouts", "Workouts"], ["exercises", "Exercises"], ["trends", "Trends"], ["plan", "Plan"]];
+type Tab = "day" | "workouts" | "exercises" | "trends" | "plan" | "coach";
+const TABS: [Tab, string][] = [["day", "Day"], ["workouts", "Workouts"], ["exercises", "Exercises"], ["trends", "Trends"], ["plan", "Plan"], ["coach", "Coach"]];
 type SyncStatus = "local" | "saved" | "saving" | "error" | "needs-update";
 
 /**
@@ -468,6 +469,7 @@ function Dashboard(props: {
         />
       )}
       {tab === "plan" && <PlanView store={store} update={update} profileAge={age} userId={userId} />}
+      {tab === "coach" && <CoachPanel store={store} update={update} />}
     </div>
   );
 }

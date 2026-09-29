@@ -52,6 +52,9 @@ Set these in Vercel (Settings → Environment Variables) and, for local runs, in
 | `SUPABASE_ANON_KEY` | Supabase publishable / anon key (safe in the browser; data is protected by RLS) |
 | `USDA_API_KEY` | USDA FoodData Central key (server-only) |
 | `WORKOUTX_API_KEY` | WorkoutX key for exercise animations (server-only) |
+| `GEMINI_API_KEY` | Google AI Studio key for the Coach tab (server-only). Leave it out and the Coach tab says it isn't set up; everything else works. |
+| `GEMINI_MODEL` | Optional. Which Gemini model to use, default `gemini-2.5-flash`. |
+| `GEMINI_PER_MINUTE` / `GEMINI_PER_DAY` | Optional caps on coach requests, default 6 a minute and 80 a day — sized for a free key. |
 
 ### 4. Run locally
 
