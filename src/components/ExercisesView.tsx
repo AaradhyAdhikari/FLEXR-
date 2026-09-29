@@ -264,7 +264,8 @@ function Detail({ ex, all, gifs, onBack, onOpen, onAdd }: { ex: Exercise; all: E
         </div>
       </div>
 
-      {wx && <Animation src={animationUrl(wx)} name={ex.n} />}
+      {/* The server decides the source; the panel hides itself if neither has one. */}
+      <Animation src={animationUrl(ex, wx)} name={ex.n} />
 
       {ex.img.length > 0 && (
         <div className="grid grid-cols-2 gap-3 mb-4">

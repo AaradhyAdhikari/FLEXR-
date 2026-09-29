@@ -21,8 +21,13 @@ export const imageUrl = (path: string) => IMG_BASE + path.split("/").map(encodeU
 
 export const hasTips = (id: string) => id in TIPS;
 
-/** Animation for an exercise, served through our own route (the key stays server-side). */
-export const animationUrl = (workoutxId: string) => `/api/exercises/gif/${workoutxId}`;
+/**
+ * Animation for an exercise. The server picks the source: ExerciseDB's clean
+ * artwork where it can confirm the match, otherwise the mapped WorkoutX one
+ * (whose key stays server-side).
+ */
+export const animationUrl = (exercise: { id: string; n: string }, workoutxId?: string) =>
+  `/api/exercises/anim/${encodeURIComponent(exercise.id)}?name=${encodeURIComponent(exercise.n)}` + (workoutxId ? `&wx=${workoutxId}` : "");
 
 let gifCache: Promise<Record<string, string>> | null = null;
 /** Map of our exercise id -> WorkoutX id, built by scripts/sync_workoutx.md. */

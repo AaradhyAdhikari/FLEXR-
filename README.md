@@ -76,6 +76,7 @@ Open http://localhost:3000.
 ## Data credits
 
 - **Indian Nutrient Databank (INDB)** — Jaacks et al., [github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-](https://github.com/lindsayjaacks/Indian-Nutrient-Databank-INDB-), CC BY 4.0. Built into `public/data/indb.json` by `scripts/build_indb.py`, which leaves out 115 dishes with implausible fat (fried recipes that count all frying oil) and 34 whose calories don't match their macros.
+- **ExerciseDB** — [exercisedb.dev](https://exercisedb.dev), the same anatomical animations without a watermark. Used whenever `/api/exercises/anim/<id>` can confirm the name is the same exercise; otherwise WorkoutX is used.
 - **WorkoutX** — [workoutxapp.com](https://workoutxapp.com), exercise animations, fetched through `/api/exercises/gif/<id>` so the API key stays on the server. Needs `WORKOUTX_API_KEY`; see `scripts/sync_workoutx.md`.
 - **free-exercise-db** — [github.com/yuhonas/free-exercise-db](https://github.com/yuhonas/free-exercise-db), Unlicense (public domain). Exercise names, muscles, equipment and steps built into `public/data/exercises.json` by `scripts/build_exercises.py`.
 - **Open Food Facts** — [openfoodfacts.org](https://world.openfoodfacts.org/), Open Database License (ODbL); product data is community-edited. Looked up live via `/api/foods/barcode/[code]`.
