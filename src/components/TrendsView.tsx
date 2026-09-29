@@ -5,6 +5,7 @@ import { computeDay, DayResult, itemKey, MeterKey, planTotals, statusOf } from "
 import { planForDay, Store } from "@/lib/storage";
 import { workoutsOn } from "@/lib/workouts";
 import { Chart, scoreTone, toneBg, toneColor, Tone } from "./ui";
+import ExportPanel from "./ExportPanel";
 
 type Props = {
   store: Store;
@@ -114,6 +115,7 @@ export default function TrendsView({ store, range, setRange, openDay }: Props) {
           <History store={store} days={days} results={results} openDay={openDay} />
         </div>
       </div>
+      <ExportPanel store={store} />
     </section>
   );
 }

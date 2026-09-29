@@ -76,7 +76,12 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  if (IMAGE_HOSTS.includes(url.hostname) || FONT_HOSTS.includes(url.hostname)) {
-    e.respondWith(cacheFirst(req, ASSETS).catch(() => fetch(req)));
+  if (FONT_HOSTS.includes(url.hostname)) {
+    // With no signal the page simply uses system fonts rather than logging an error.
+    e.respondWith(cacheFirst(req, ASSETS).catch(() => new Response("", { status: 200, headers: { "Content-Type": "text/css" } })));
+    return;
+  }
+  if (IMAGE_HOSTS.includes(url.hostname)) {
+    e.respondWith(cacheFirst(req, ASSETS));
   }
 });
