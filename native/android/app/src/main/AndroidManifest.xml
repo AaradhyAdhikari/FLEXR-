@@ -42,6 +42,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Reminders: posting them, and getting them back after a reboot. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Steps and sleep only: Flexr asks for nothing else from Health Connect. -->
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />

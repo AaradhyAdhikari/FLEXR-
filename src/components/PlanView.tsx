@@ -5,6 +5,7 @@ import { fmt, todayISO, uid, unitLabel } from "@/lib/format";
 import { macFor, mealTotals, planTotals } from "@/lib/macros";
 import { Store } from "@/lib/storage";
 import { Food, Plan, Targets } from "@/lib/types";
+import RemindersPanel from "./RemindersPanel";
 import { NumInput } from "./ui";
 import FoodPicker from "./FoodPicker";
 import RecipeEditor from "./RecipeEditor";
@@ -16,6 +17,7 @@ type Props = {
   store: Store;
   update: (fn: (s: Store) => Store) => void;
   profileAge?: number;
+  userId: string;
 };
 
 const TARGET_FIELDS: [keyof Targets, string, number][] = [
@@ -37,7 +39,7 @@ function withPlan(s: Store, plan: Plan): Store {
   return { ...s, plans: { ...s.plans, [plan.id]: plan }, days };
 }
 
-export default function PlanView({ store, update, profileAge }: Props) {
+export default function PlanView({ store, update, profileAge, userId }: Props) {
   const plans = Object.values(store.plans);
   const [selId, setSelId] = useState(store.activePlanId);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -346,6 +348,8 @@ export default function PlanView({ store, update, profileAge }: Props) {
           <a className="underline" href="https://world.openfoodfacts.org/" target="_blank" rel="noopener noreferrer">Open Food Facts</a> (ODbL, community-edited). Check packaged foods against their labels.
         </p>
       </div>
+
+      <RemindersPanel store={store} userId={userId} />
     </section>
   );
 }

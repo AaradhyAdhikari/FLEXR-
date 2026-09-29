@@ -49,6 +49,20 @@ phone records it, so awake time in the night isn't counted as sleep.
 Apple Health can't report whether permission was granted, so on iOS the app
 simply tries to read and shows what it finds.
 
+## Reminders
+
+Reminder times are set on the Plan tab and kept on the phone, not in your
+account. They're scheduled with `@capacitor/local-notifications`, which hands
+them to Android's alarm manager, so they arrive with the app closed and with no
+signal — nothing about them is sent anywhere.
+
+Android 13 and later asks for notification permission the first time you switch
+reminders on. `RECEIVE_BOOT_COMPLETED` is what puts them back after a restart.
+
+Whenever the app opens it re-schedules the set, which is how a reminder you've
+already dealt with today — weighed in, trained, hit your step goal — is quietly
+moved to tomorrow instead of firing anyway.
+
 ## Publishing
 
 Nothing here is needed to use the app yourself — an APK installed directly

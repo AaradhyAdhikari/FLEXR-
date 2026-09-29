@@ -85,6 +85,7 @@ function LocalShell() {
   return (
     <Dashboard
       who={`${user.name} · ${user.age}`}
+      userId={user.id}
       age={user.age}
       store={store}
       update={update}
@@ -282,6 +283,7 @@ function CloudShell() {
   return (
     <Dashboard
       who={who}
+      userId={userId}
       age={age}
       store={store}
       update={update}
@@ -360,6 +362,7 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
 
 function Dashboard(props: {
   who: string;
+  userId: string;
   age?: number;
   store: Store;
   update: Update;
@@ -374,7 +377,7 @@ function Dashboard(props: {
   onRestoreUnsaved?: () => void;
   onDiscardUnsaved?: () => void;
 }) {
-  const { who, age, store, update, status, onLogout, notice, onDismissNotice, offer, onImport, onDismissOffer, unsaved, onRestoreUnsaved, onDiscardUnsaved } = props;
+  const { who, userId, age, store, update, status, onLogout, notice, onDismissNotice, offer, onImport, onDismissOffer, unsaved, onRestoreUnsaved, onDiscardUnsaved } = props;
   const [tab, setTab] = useState<Tab>("day");
   const [date, setDate] = useState(todayISO());
   const [range, setRange] = useState<7 | 14 | 30>(14);
@@ -464,7 +467,7 @@ function Dashboard(props: {
           onAdded={(id) => { setOpenWorkout(id); setTab("workouts"); }}
         />
       )}
-      {tab === "plan" && <PlanView store={store} update={update} profileAge={age} />}
+      {tab === "plan" && <PlanView store={store} update={update} profileAge={age} userId={userId} />}
     </div>
   );
 }
