@@ -88,6 +88,7 @@ export type DayLog = {
   water: number | null;
   steps: number | null;
   weight: number | null;
+  measures?: Record<string, number>; // tape measurements in cm, by key
   workout: boolean;
   notes: string;
 };

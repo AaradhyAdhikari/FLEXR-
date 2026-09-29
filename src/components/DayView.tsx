@@ -6,6 +6,7 @@ import { emptyDay, planForDay, Store } from "@/lib/storage";
 import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
 import FoodPicker from "./FoodPicker";
 import StepsSync from "./StepsSync";
+import BodyPanel from "./BodyPanel";
 import { foodFrom, hasFood, lastLoggedDay, recentExtras, withoutAlreadyThere } from "@/lib/repeat";
 import { workoutsOn } from "@/lib/workouts";
 import { checkInReady } from "./SmartTargets";
@@ -334,6 +335,7 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
                 )}
               </div>
             </div>
+            <BodyPanel store={store} day={day} date={date} updateDay={updateDay} />
             <div className="mt-3">
               <label className="label" htmlFor="notes">Notes</label>
               <textarea id="notes" className="input min-h-16 resize-y" value={day.notes} placeholder="How did training go? Anything that threw the day off?"
