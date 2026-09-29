@@ -7,9 +7,10 @@ import { cap, Exercise, loadExercises } from "@/lib/exercises";
 import { Store } from "@/lib/storage";
 import { Workout, WorkoutExercise, WorkoutSet } from "@/lib/types";
 import {
-  doneSets, e1rm, exerciseHistory, exerciseKey, exerciseVolume, formatSet, isPR, previousSets,
-  progressNote, sortedWorkouts, WORKOUT_TEMPLATES, workoutVolume,
+  doneSets, e1rm, exerciseHistory, exerciseKey, exerciseVolume, formatSecs, formatSet, formatSetShort, isPR, previousSets,
+  progressNote, sortedWorkouts, supersetLabels, WORKOUT_TEMPLATES, workoutVolume,
 } from "@/lib/workouts";
+import { BARS, plateLine, platesFor } from "@/lib/plates";
 import { Chart, NumInput } from "./ui";
 import RoutinesPanel from "./RoutinesPanel";
 import { routineFromWorkout, workoutFromRoutine } from "@/lib/routines";
@@ -258,6 +259,7 @@ function WorkoutEditor(props: {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const now = useNow(1000);
   const restLeft = restEnd ? Math.ceil((restEnd - now) / 1000) : 0;
+  const labels = supersetLabels(w.exercises);
   const [buzzed, setBuzzed] = useState<number | null>(null);
 
   // Buzz once when rest is over (on phones that support it).
@@ -310,6 +312,15 @@ function WorkoutEditor(props: {
             all={all}
             workout={w}
             ex={ex}
+            label={labels[ex.id]}
+            canGroup={xi < w.exercises.length - 1}
+            grouped={!!ex.group && ex.group === w.exercises[xi + 1]?.group}
+            onGroup={() => edit((d) => {
+              const a = d.exercises[xi], b = d.exercises[xi + 1];
+              if (!b) return;
+              if (a.group && a.group === b.group) { a.group = null; b.group = null; }
+              else { const g = a.group || b.group || "g-" + uid(); a.group = g; b.group = g; }
+            })}
             onChange={(fn) => edit((d) => fn(d.exercises[xi]))}
             onRemove={() => edit((d) => { d.exercises.splice(xi, 1); })}
             onProgress={() => onProgress(exerciseKey(ex), ex.name)}
@@ -367,13 +378,36 @@ function ExerciseCard(props: {
   all: Record<string, Workout>;
   workout: Workout;
   ex: WorkoutExercise;
+  label?: string;
+  canGroup?: boolean;
+  grouped?: boolean;
+  onGroup?: () => void;
   onChange: (fn: (e: WorkoutExercise) => void) => void;
   onRemove: () => void;
   onProgress: () => void;
   onHowTo?: () => void;
   onSetDone: () => void;
 }) {
-  const { all, workout, ex, onChange, onRemove, onProgress, onHowTo, onSetDone } = props;
+  const { all, workout, ex, label, canGroup, grouped, onGroup, onChange, onRemove, onProgress, onHowTo, onSetDone } = props;
+  const timed = ex.mode === "time";
+  const [plates, setPlates] = useState<{ weight: number; bar: number } | null>(null);
+  const [running, setRunning] = useState<{ set: number; from: number } | null>(null);
+  const tick = useNow(running ? 250 : 60_000);
+  const elapsed = running ? Math.round((tick - running.from) / 1000) : 0;
+  const heaviest = Math.max(0, ...ex.sets.map((s) => s.weight ?? 0));
+
+  function stopTimer(save: boolean) {
+    if (!running) return;
+    const i = running.set;
+    const secs = Math.max(1, Math.round((Date.now() - running.from) / 1000));
+    setRunning(null);
+    if (!save) return;
+    onChange((e) => {
+      e.sets[i].secs = secs;
+      e.sets[i].done = true;
+    });
+    onSetDone();
+  }
   const key = exerciseKey(ex);
   const prev = previousSets(all, workout, key);
   const cell = "px-1.5 py-1.5";
@@ -381,13 +415,14 @@ function ExerciseCard(props: {
   function toggle(i: number) {
     const s = ex.sets[i];
     const p = prev?.[i] ?? prev?.[prev.length - 1];
-    if (!s.done && s.reps == null && s.weight == null && !p) return; // nothing to tick yet
+    if (!s.done && s.reps == null && s.weight == null && s.secs == null && !p) return; // nothing to tick yet
     onChange((e) => {
       const t = e.sets[i];
       if (!t.done) {
         // Ticking an empty set means "same as last time".
         if (t.weight == null && p) t.weight = p.weight;
         if (t.reps == null && p) t.reps = p.reps;
+        if (t.secs == null && p?.secs != null) t.secs = p.secs;
       }
       t.done = !t.done;
     });
@@ -398,8 +433,19 @@ function ExerciseCard(props: {
     <div className="panel">
       <div className="flex items-start gap-2 mb-2">
         <button className="text-left flex-1 min-w-0" onClick={onProgress} title="See progress for this exercise">
-          <div className="font-bold leading-tight">{ex.name}</div>
+          <div className="font-bold leading-tight">
+            {label && <span className="text-xs font-bold px-1.5 py-0.5 rounded mr-1.5 align-middle" style={{ background: "var(--accent)", color: "var(--accent-ink)" }}>{label}</span>}
+            {ex.name}
+          </div>
           <div className="text-xs muted">{ex.muscles.map(cap).join(", ") || "Custom exercise"} · <span style={{ color: "var(--accent)" }}>progress ›</span></div>
+        </button>
+        <button
+          className="btn btn-sm"
+          onClick={() => onChange((e) => { e.mode = e.mode === "time" ? "reps" : "time"; })}
+          aria-pressed={timed}
+          title={timed ? "Log reps instead" : "Log a hold in seconds"}
+        >
+          {timed ? "Reps" : "Hold"}
         </button>
         {onHowTo && (
           <button className="btn btn-sm" onClick={onHowTo} title={`How to do ${ex.name}`}>How to</button>
@@ -412,7 +458,8 @@ function ExerciseCard(props: {
             <th className={`${cell} text-left w-8`}>Set</th>
             <th className={`${cell} text-left`}>Last time</th>
             <th className={`${cell} text-left w-[84px]`}>kg</th>
-            <th className={`${cell} text-left w-[72px]`}>Reps</th>
+            <th className={`${cell} text-left w-[78px]`}>{timed ? "Time" : "Reps"}</th>
+            <th className={`${cell} text-left w-[62px]`} title="How hard it felt, 6–10">RPE</th>
             <th className={`${cell} w-11`}><span className="sr-only">Done</span></th>
             <th className="w-7"><span className="sr-only">Remove</span></th>
           </tr>
@@ -425,7 +472,7 @@ function ExerciseCard(props: {
               <tr key={i} style={{ background: s.done ? "color-mix(in srgb, var(--good) 12%, transparent)" : undefined }}>
                 <td className={`${cell} font-bold`}>{i + 1}</td>
                 <td className={`${cell} muted text-xs`}>
-                  {p ? ((p.weight ?? 0) > 0 ? `${+(p.weight ?? 0).toFixed(2)}×${p.reps ?? 0}` : `${p.reps ?? 0} reps`) : "–"}
+                  {p ? formatSetShort(p) : "–"}
                   {pr && <span className="ml-1.5 text-[10.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--warn-bg)", color: "var(--warn)" }}>PR</span>}
                 </td>
                 <td className={cell}>
@@ -433,8 +480,26 @@ function ExerciseCard(props: {
                     onChange={(v) => onChange((e) => { e.sets[i].weight = v == null ? null : Math.min(500, Math.max(0, v)); })} aria-label={`${ex.name} set ${i + 1} weight`} />
                 </td>
                 <td className={cell}>
-                  <NumInput className="input num !px-2 !py-1.5" min={0} max={100} step={1} inputMode="numeric" value={s.reps} placeholder={p?.reps != null ? String(p.reps) : "reps"}
-                    onChange={(v) => onChange((e) => { e.sets[i].reps = v == null ? null : Math.min(100, Math.max(0, Math.round(v))); })} aria-label={`${ex.name} set ${i + 1} reps`} />
+                  {timed ? (
+                    running?.set === i ? (
+                      <button className="btn btn-sm btn-primary w-full !px-1" onClick={() => stopTimer(true)} aria-label={`Stop ${ex.name} set ${i + 1}`}>
+                        {formatSecs(elapsed)}
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <NumInput className="input num !px-2 !py-1.5 !w-[46px]" min={0} max={3600} step={5} inputMode="numeric" value={s.secs ?? null} placeholder="secs"
+                          onChange={(v) => onChange((e) => { e.sets[i].secs = v == null ? null : Math.min(3600, Math.max(0, Math.round(v))); })} aria-label={`${ex.name} set ${i + 1} seconds`} />
+                        <button className="btn btn-sm !px-1.5" onClick={() => setRunning({ set: i, from: Date.now() })} aria-label={`Start timing ${ex.name} set ${i + 1}`}>▶</button>
+                      </div>
+                    )
+                  ) : (
+                    <NumInput className="input num !px-2 !py-1.5" min={0} max={100} step={1} inputMode="numeric" value={s.reps} placeholder={p?.reps != null ? String(p.reps) : "reps"}
+                      onChange={(v) => onChange((e) => { e.sets[i].reps = v == null ? null : Math.min(100, Math.max(0, Math.round(v))); })} aria-label={`${ex.name} set ${i + 1} reps`} />
+                  )}
+                </td>
+                <td className={cell}>
+                  <NumInput className="input num !px-1.5 !py-1.5" min={5} max={10} step={0.5} value={s.rpe ?? null} placeholder="–"
+                    onChange={(v) => onChange((e) => { e.sets[i].rpe = v == null ? null : Math.min(10, Math.max(5, Math.round(v * 2) / 2)); })} aria-label={`${ex.name} set ${i + 1} RPE`} />
                 </td>
                 <td className={`${cell} text-center`}>
                   <button
@@ -458,11 +523,46 @@ function ExerciseCard(props: {
         </tbody>
       </table>
       <div className="flex items-center justify-between mt-2 gap-2 flex-wrap">
-        <button className="btn btn-sm" onClick={() => onChange((e) => { const last = e.sets[e.sets.length - 1]; e.sets.push({ weight: last?.weight ?? null, reps: last?.reps ?? null, done: false }); })}>
+        <button className="btn btn-sm" onClick={() => onChange((e) => { const last = e.sets[e.sets.length - 1]; e.sets.push({ weight: last?.weight ?? null, reps: last?.reps ?? null, secs: last?.secs ?? null, done: false }); })}>
           + Add set
         </button>
-        <span className="text-xs muted num">{fmt(exerciseVolume(ex))} kg volume</span>
+        {heaviest > 0 && (
+          <button className="btn btn-sm" onClick={() => setPlates(plates ? null : { weight: heaviest, bar: 20 })} aria-expanded={!!plates}>
+            Plates
+          </button>
+        )}
+        {canGroup && (
+          <button className="btn btn-sm" onClick={onGroup} aria-pressed={!!grouped} title="Do this and the next exercise back to back">
+            {grouped ? "Unlink superset" : "Superset with next"}
+          </button>
+        )}
+        <span className="text-xs muted num ml-auto">{fmt(exerciseVolume(ex))} kg volume</span>
       </div>
+      {plates && <Plates weight={plates.weight} bar={plates.bar} onBar={(bar) => setPlates({ ...plates, bar })} onWeight={(weight) => setPlates({ ...plates, weight })} />}
+    </div>
+  );
+}
+
+/** Which plates go on each side, for the weight you're working at. */
+function Plates({ weight, bar, onBar, onWeight }: { weight: number; bar: number; onBar: (kg: number) => void; onWeight: (kg: number) => void }) {
+  const r = platesFor(weight, bar);
+  return (
+    <div className="mt-2 rounded-[10px] px-3 py-2.5 flex flex-col gap-2" style={{ background: "var(--panel-2)" }} data-testid="plates">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs muted" htmlFor="pl-w">Weight</label>
+        <NumInput id="pl-w" className="input num !w-20 !py-1" min={0} max={500} step={2.5} value={weight} onChange={(v) => onWeight(v ?? 0)} aria-label="Plate calculator weight" />
+        <select className="input !w-auto !py-1 text-[13px]" value={bar} onChange={(e) => onBar(Number(e.target.value))} aria-label="Bar">
+          {BARS.map((b) => <option key={b.kg} value={b.kg}>{b.label}</option>)}
+        </select>
+      </div>
+      {r && (
+        <div className="text-sm">
+          <b className="num">{plateLine(r)}</b> <span className="muted">per side</span>
+          {r.short !== 0 && (
+            <span className="muted"> · closest is {r.achieved} kg{r.short > 0 ? `, ${r.short} kg short` : ""}</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

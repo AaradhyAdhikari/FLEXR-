@@ -4,7 +4,7 @@ import { Workout, WorkoutExercise, WorkoutSet } from "./types";
 export const exerciseKey = (e: Pick<WorkoutExercise, "exerciseId" | "name">) =>
   e.exerciseId ?? "custom:" + e.name.trim().toLowerCase();
 
-const isCounted = (s: WorkoutSet) => s.done && (s.reps ?? 0) > 0;
+const isCounted = (s: WorkoutSet) => s.done && ((s.reps ?? 0) > 0 || (s.secs ?? 0) > 0);
 
 /** Estimated one-rep max (Epley). Only meaningful for up to ~12 reps. */
 export function e1rm(weight: number, reps: number): number {
@@ -12,6 +12,7 @@ export function e1rm(weight: number, reps: number): number {
   return reps === 1 ? weight : weight * (1 + reps / 30);
 }
 
+/** Weight moved by one set. Timed holds aren't reps, so they add no tonnage. */
 export function setVolume(s: WorkoutSet): number {
   return isCounted(s) ? (s.weight ?? 0) * (s.reps ?? 0) : 0;
 }
@@ -107,7 +108,33 @@ export const WORKOUT_TEMPLATES = ["Push day", "Pull day", "Leg day", "Upper body
 
 export function formatSet(s: WorkoutSet): string {
   const w = s.weight ?? 0;
+  if ((s.secs ?? 0) > 0) return w > 0 ? `${+w.toFixed(2)} kg × ${formatSecs(s.secs!)}` : formatSecs(s.secs!);
   return w > 0 ? `${+w.toFixed(2)} kg × ${s.reps ?? 0}` : `${s.reps ?? 0} reps`;
+}
+
+/** The tight version for the "last time" column: "50×8", "45s", "20×45s". */
+export function formatSetShort(s: WorkoutSet): string {
+  const w = s.weight ?? 0;
+  const amount = (s.secs ?? 0) > 0 ? formatSecs(s.secs!) : String(s.reps ?? 0);
+  return w > 0 ? `${+w.toFixed(2)}×${amount}` : (s.secs ?? 0) > 0 ? amount : `${amount} reps`;
+}
+
+/** 95 seconds as "1:35", 45 as "45s". */
+export function formatSecs(secs: number): string {
+  const n = Math.max(0, Math.round(secs));
+  return n >= 60 ? `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}` : `${n}s`;
+}
+
+/** Exercises sharing a group are done back to back; this labels them A1, A2… */
+export function supersetLabels(exercises: WorkoutExercise[]): Record<string, string> {
+  const groups: string[] = [];
+  for (const e of exercises) if (e.group && !groups.includes(e.group)) groups.push(e.group);
+  const out: Record<string, string> = {};
+  for (const [i, g] of groups.entries()) {
+    const letter = String.fromCharCode(65 + (i % 26));
+    exercises.filter((e) => e.group === g).forEach((e, j) => (out[e.id] = `${letter}${j + 1}`));
+  }
+  return out;
 }
 
 /** Workouts on a given day that have at least one ticked set. */

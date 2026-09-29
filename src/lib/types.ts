@@ -97,6 +97,8 @@ export type Macro = { kcal: number; p: number; c: number; f: number };
 export type WorkoutSet = {
   weight: number | null; // kg
   reps: number | null;
+  secs?: number | null; // for holds and carries, instead of reps
+  rpe?: number | null; // how hard it felt, 6–10
   done: boolean;
 };
 
@@ -106,6 +108,8 @@ export type WorkoutExercise = {
   name: string;
   muscles: string[]; // primary muscles, for display
   sets: WorkoutSet[];
+  mode?: "reps" | "time"; // "time" for planks, hangs and carries
+  group?: string | null; // exercises sharing a group are a superset
 };
 
 /** One line of a saved routine: the exercise, and what you aim to do. */

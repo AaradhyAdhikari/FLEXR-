@@ -15,6 +15,7 @@ Flexr is a personal fitness companion that brings together the three things most
 - **Day** — tick meals/foods from your plan, add extras, log water, steps, weight and gym; live macro bars, daily score and "what to fix"
 - **Trends** — 7/14/30-day charts (score, weight, protein, calories, carbs, fat, water, steps), insights and history
 - **Plan** — per-user diet plans, targets, meals and an editable food list
+- **Supersets, RPE, holds and plates** — link exercises into a superset (labelled A1, A2), note how hard a set felt on the 6–10 RPE scale, log planks and hangs in seconds with a built-in stopwatch, and see which plates to put on each side of the bar
 - **Routines** — save a training day (Push, Pull, Legs) with its exercises, sets and target reps; starting one lays out the session with last time's numbers beside each set. Save any session you improvised as a routine
 - **Workouts** — log sets, reps and weight with last session's numbers shown, a rest timer, personal-record badges, repeat-a-workout, and per-exercise progress (top set chart, estimated 1-rep max, plateau hints). Search 870+ exercises or add your own
 - **Exercises** — a library of 876 exercises with looping animations (WorkoutX) for 580 of them, photos, step-by-step instructions, a front/back body map of the muscles worked, Flexr's own form cues and common mistakes for 39 main lifts, and alternatives when the equipment is taken. Filter by muscle (tap the body map), equipment and level; add straight to today's workout
