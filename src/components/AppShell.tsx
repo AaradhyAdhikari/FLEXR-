@@ -337,6 +337,7 @@ function normalize(s: Store): Store {
     plans,
     days,
     workouts: s.workouts || {},
+    routines: s.routines || {},
     activePlanId: s.activePlanId && plans[s.activePlanId] ? s.activePlanId : Object.keys(plans)[0],
   };
 }
@@ -354,7 +355,7 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
   saved: "Saved",
   saving: "Saving…",
   error: "Not saved — retrying",
-  "needs-update": "Workouts not saved — run database update 0002",
+  "needs-update": "Workouts or routines not saved — run the latest database update",
 };
 
 function Dashboard(props: {

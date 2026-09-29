@@ -108,6 +108,24 @@ export type WorkoutExercise = {
   sets: WorkoutSet[];
 };
 
+/** One line of a saved routine: the exercise, and what you aim to do. */
+export type RoutineExercise = {
+  id: string;
+  exerciseId: string | null;
+  name: string;
+  muscles: string[];
+  sets: number;
+  reps: string; // free text, e.g. "8-12" or "5"
+};
+
+/** A saved training day — Push day, Legs — you can start a session from. */
+export type Routine = {
+  id: string;
+  name: string;
+  exercises: RoutineExercise[];
+  createdAt: string;
+};
+
 export type Workout = {
   id: string;
   date: string; // yyyy-mm-dd

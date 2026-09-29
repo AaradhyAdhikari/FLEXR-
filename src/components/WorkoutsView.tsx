@@ -11,6 +11,9 @@ import {
   progressNote, sortedWorkouts, WORKOUT_TEMPLATES, workoutVolume,
 } from "@/lib/workouts";
 import { Chart, NumInput } from "./ui";
+import RoutinesPanel from "./RoutinesPanel";
+import { routineFromWorkout, workoutFromRoutine } from "@/lib/routines";
+import { Routine } from "@/lib/types";
 
 type Update = (fn: (s: Store) => Store) => void;
 const REST_SECONDS = 90;
@@ -82,6 +85,21 @@ export default function WorkoutsView({ store, update, openWorkoutId, onOpened, o
     setOpenId(id);
   }
 
+  /** Start a session laid out from a saved routine. */
+  function startRoutine(r: Routine) {
+    const w = workoutFromRoutine(r, todayISO(), workouts);
+    update((s) => ({ ...s, workouts: { ...(s.workouts ?? {}), [w.id]: w } }));
+    setSummary("");
+    setOpenId(w.id);
+  }
+
+  /** Keep the workout you just did as a routine to repeat. */
+  function saveAsRoutine(w: Workout) {
+    const r = routineFromWorkout(w);
+    update((s) => ({ ...s, routines: { ...(s.routines ?? {}), [r.id]: r } }));
+    setSummary(`Saved "${r.name}" as a routine.`);
+  }
+
   function remove(id: string) {
     update((s) => {
       const next = { ...(s.workouts ?? {}) };
@@ -119,10 +137,20 @@ export default function WorkoutsView({ store, update, openWorkoutId, onOpened, o
         onDelete={() => remove(open.id)}
         onProgress={(key, name) => setProgress({ key, name })}
         onHowTo={onHowTo}
+        onSaveRoutine={() => saveAsRoutine(open)}
       />
     );
   }
-  return <WorkoutList workouts={workouts} summary={summary} onDismiss={() => setSummary("")} onStart={start} onOpen={setOpenId} />;
+  return (
+    <WorkoutList
+      workouts={workouts}
+      summary={summary}
+      onDismiss={() => setSummary("")}
+      onStart={start}
+      onOpen={setOpenId}
+      routines={<RoutinesPanel store={store} update={update} onStart={startRoutine} />}
+    />
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -133,8 +161,9 @@ function WorkoutList(props: {
   onDismiss: () => void;
   onStart: (name: string, from?: Workout) => void;
   onOpen: (id: string) => void;
+  routines?: React.ReactNode;
 }) {
-  const { workouts, summary, onDismiss, onStart, onOpen } = props;
+  const { workouts, summary, onDismiss, onStart, onOpen, routines } = props;
   const [name, setName] = useState("");
   const list = sortedWorkouts(workouts).reverse();
   const active = list.find((w) => !w.finishedAt);
@@ -155,6 +184,8 @@ function WorkoutList(props: {
           <button className="btn btn-ghost btn-sm" onClick={onDismiss} aria-label="Dismiss">✕</button>
         </div>
       )}
+
+      {routines}
 
       {active ? (
         <div className="panel mb-4 flex flex-wrap items-center gap-3" style={{ borderColor: "var(--accent)" }}>
@@ -219,8 +250,9 @@ function WorkoutEditor(props: {
   onDelete: () => void;
   onProgress: (key: string, name: string) => void;
   onHowTo?: (exerciseId: string) => void;
+  onSaveRoutine?: () => void;
 }) {
-  const { store, workout: w, edit, onBack, onFinish, onDelete, onProgress, onHowTo } = props;
+  const { store, workout: w, edit, onBack, onFinish, onDelete, onProgress, onHowTo, onSaveRoutine } = props;
   const all = store.workouts ?? {};
   const [restEnd, setRestEnd] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -302,6 +334,9 @@ function WorkoutEditor(props: {
             </button>
           ) : (
             <button className="btn btn-primary" onClick={onBack}>Done</button>
+          )}
+          {onSaveRoutine && w.exercises.length > 0 && (
+            <button className="btn" onClick={onSaveRoutine}>Save as routine</button>
           )}
           <button className="btn btn-danger" onClick={() => setConfirmDelete(true)}>Delete workout</button>
         </div>
@@ -395,11 +430,11 @@ function ExerciseCard(props: {
                 </td>
                 <td className={cell}>
                   <NumInput className="input num !px-2 !py-1.5" min={0} max={500} step={2.5} value={s.weight} placeholder={p?.weight != null ? String(p.weight) : "kg"}
-                    onChange={(v) => onChange((e) => { e.sets[i].weight = v == null ? null : Math.min(500, Math.max(0, v)); })} aria-label={`Set ${i + 1} weight`} />
+                    onChange={(v) => onChange((e) => { e.sets[i].weight = v == null ? null : Math.min(500, Math.max(0, v)); })} aria-label={`${ex.name} set ${i + 1} weight`} />
                 </td>
                 <td className={cell}>
                   <NumInput className="input num !px-2 !py-1.5" min={0} max={100} step={1} inputMode="numeric" value={s.reps} placeholder={p?.reps != null ? String(p.reps) : "reps"}
-                    onChange={(v) => onChange((e) => { e.sets[i].reps = v == null ? null : Math.min(100, Math.max(0, Math.round(v))); })} aria-label={`Set ${i + 1} reps`} />
+                    onChange={(v) => onChange((e) => { e.sets[i].reps = v == null ? null : Math.min(100, Math.max(0, Math.round(v))); })} aria-label={`${ex.name} set ${i + 1} reps`} />
                 </td>
                 <td className={`${cell} text-center`}>
                   <button
@@ -407,7 +442,7 @@ function ExerciseCard(props: {
                     style={{ borderColor: s.done ? "var(--good)" : "var(--line)", background: s.done ? "var(--good)" : "var(--panel)", color: s.done ? "var(--accent-ink)" : "var(--muted)" }}
                     onClick={() => toggle(i)}
                     aria-pressed={s.done}
-                    aria-label={`Set ${i + 1} done`}
+                    aria-label={`${ex.name} set ${i + 1} done`}
                   >
                     ✓
                   </button>

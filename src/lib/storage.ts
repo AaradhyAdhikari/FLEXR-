@@ -1,6 +1,6 @@
 "use client";
 
-import { DayLog, Food, Plan, Workout } from "./types";
+import { DayLog, Food, Plan, Routine, Workout } from "./types";
 import { SEED_FOODS, SEED_PLAN } from "./seed";
 
 // Each signed-in user gets their own foods, plans and day logs.
@@ -11,6 +11,7 @@ export type Store = {
   plans: Record<string, Plan>;
   days: Record<string, DayLog>;
   workouts: Record<string, Workout>;
+  routines: Record<string, Routine>;
   activePlanId: string;
 };
 
@@ -18,7 +19,7 @@ export function defaultStore(): Store {
   const foods: Record<string, Food> = {};
   SEED_FOODS.forEach((f) => (foods[f.id] = { ...f }));
   const plan = structuredClone(SEED_PLAN);
-  return { foods, plans: { [plan.id]: plan }, days: {}, workouts: {}, activePlanId: plan.id };
+  return { foods, plans: { [plan.id]: plan }, days: {}, workouts: {}, routines: {}, activePlanId: plan.id };
 }
 
 export function loadStore(userId: string): Store {
@@ -29,7 +30,7 @@ export function loadStore(userId: string): Store {
     const base = defaultStore();
     const plans = s.plans && Object.keys(s.plans).length ? s.plans : base.plans;
     const activePlanId = s.activePlanId && plans[s.activePlanId] ? s.activePlanId : Object.keys(plans)[0];
-    return { foods: s.foods || base.foods, plans, days: s.days || {}, workouts: s.workouts || {}, activePlanId };
+    return { foods: s.foods || base.foods, plans, days: s.days || {}, workouts: s.workouts || {}, routines: s.routines || {}, activePlanId };
   } catch {
     return defaultStore();
   }
