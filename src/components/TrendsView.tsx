@@ -6,6 +6,7 @@ import { planForDay, Store } from "@/lib/storage";
 import { workoutsOn } from "@/lib/workouts";
 import { Chart, scoreTone, toneBg, toneColor, Tone } from "./ui";
 import ExportPanel from "./ExportPanel";
+import MuscleWeek from "./MuscleWeek";
 
 type Props = {
   store: Store;
@@ -108,6 +109,7 @@ export default function TrendsView({ store, range, setRange, openDay }: Props) {
           <h2 className="h2">What the data says</h2>
           <Insights store={store} days={days} results={results} logged={logged} wChange={wChange} today={today} />
         </div>
+        <MuscleWeek store={store} today={today} />
         <div className="panel">
           <h2 className="h2">
             History <small className="font-sans text-xs font-medium normal-case tracking-normal muted">tap a row to open that day</small>

@@ -13,6 +13,7 @@ Flexr is a personal fitness companion that brings together the three things most
 - **Accounts** — email sign-in (link or one-time code) with Supabase; name and age asked once
 - **Cloud sync** — plans, foods and daily logs saved to Supabase automatically, with a saving indicator and automatic retry
 - **Day** — tick meals/foods from your plan, add extras, log water, steps, weight and gym; live macro bars, daily score and "what to fix"
+- **Muscles this week** — sets per muscle over the last 7 days against the 7 before, with the groups you skipped named outright
 - **Trends** — 7/14/30-day charts (score, weight, protein, calories, carbs, fat, water, steps), insights and history
 - **Plan** — per-user diet plans, targets, meals and an editable food list
 - **Supersets, RPE, holds and plates** — link exercises into a superset (labelled A1, A2), note how hard a set felt on the 6–10 RPE scale, log planks and hangs in seconds with a built-in stopwatch, and see which plates to put on each side of the bar

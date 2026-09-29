@@ -141,3 +141,51 @@ export function supersetLabels(exercises: WorkoutExercise[]): Record<string, str
 export function workoutsOn(all: Record<string, Workout> | undefined, date: string): Workout[] {
   return Object.values(all ?? {}).filter((w) => w.date === date && doneSets(w) > 0);
 }
+
+/** Sets and tonnage per muscle group over a stretch of days. */
+export type MuscleWork = { muscle: string; sets: number; volume: number; previous: number };
+
+const COUNTED = (s: WorkoutSet) => s.done && ((s.reps ?? 0) > 0 || (s.secs ?? 0) > 0);
+
+/**
+ * How much work each muscle got, this week against last.
+ * A set counts once for each of the exercise's primary muscles, which is how
+ * most people count "sets per muscle" when checking a week is balanced.
+ */
+export function muscleWork(all: Record<string, Workout>, from: string, to: string, prevFrom: string, prevTo: string): MuscleWork[] {
+  const now = new Map<string, { sets: number; volume: number }>();
+  const before = new Map<string, number>();
+
+  for (const w of Object.values(all ?? {})) {
+    const current = w.date >= from && w.date <= to;
+    const earlier = w.date >= prevFrom && w.date <= prevTo;
+    if (!current && !earlier) continue;
+    for (const ex of w.exercises) {
+      const muscles = ex.muscles.length ? ex.muscles : ["other"];
+      const sets = ex.sets.filter(COUNTED).length;
+      if (!sets) continue;
+      const vol = exerciseVolume(ex);
+      for (const m of muscles) {
+        if (current) {
+          const cur = now.get(m) ?? { sets: 0, volume: 0 };
+          now.set(m, { sets: cur.sets + sets, volume: cur.volume + vol });
+        } else {
+          before.set(m, (before.get(m) ?? 0) + sets);
+        }
+      }
+    }
+  }
+
+  const names = new Set([...now.keys(), ...before.keys()]);
+  return [...names]
+    .map((muscle) => ({
+      muscle,
+      sets: now.get(muscle)?.sets ?? 0,
+      volume: Math.round(now.get(muscle)?.volume ?? 0),
+      previous: before.get(muscle) ?? 0,
+    }))
+    .sort((a, b) => b.sets - a.sets || a.muscle.localeCompare(b.muscle));
+}
+
+/** The big muscle groups, so we can say when one was missed entirely. */
+export const MAJOR_MUSCLES = ["chest", "lats", "middle back", "shoulders", "quadriceps", "hamstrings", "glutes", "biceps", "triceps", "abdominals", "calves"];
