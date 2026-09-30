@@ -1,0 +1,5 @@
+# The Capacitor phone shell is a separate project with its own dependencies and
+# its own build. Vercel builds the website only — it has no reason to upload or
+# type-check this folder, and doing so breaks the build, because @capacitor/cli
+# is installed under native/, not at the root.
+native
