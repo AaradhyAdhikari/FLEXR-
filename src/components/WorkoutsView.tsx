@@ -173,10 +173,10 @@ function WorkoutList(props: {
   return (
     <section>
       <div className="mt-5 mb-4">
-        <div className="font-display text-3xl font-bold uppercase leading-none">
+        <h1 className="font-display text-3xl font-bold uppercase leading-none">
           Workouts
           <small className="block font-sans text-[12.5px] font-medium normal-case muted mt-1">Log sets, reps and weight. Flexr remembers last time for you.</small>
-        </div>
+        </h1>
       </div>
 
       {summary && (
@@ -647,7 +647,7 @@ function ExerciseProgress({ store, exKey, name, onBack }: { store: Store; exKey:
       <div className="flex items-center gap-2 mt-5 mb-4">
         <button className="btn btn-ghost" onClick={onBack}>‹ Back</button>
       </div>
-      <div className="font-display text-3xl font-bold uppercase leading-none mb-4">{name}</div>
+      <h1 className="font-display text-3xl font-bold uppercase leading-none mb-4">{name}</h1>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           ["Sessions", String(history.length)],

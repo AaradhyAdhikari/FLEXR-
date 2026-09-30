@@ -361,6 +361,53 @@ const STATUS_TEXT: Record<SyncStatus, string> = {
   "needs-update": "Workouts or routines not saved — run the latest database update",
 };
 
+/**
+ * The section tabs. There are more of them than fit on a phone, so the strip
+ * scrolls — and says so: the edge fades while there's more to reach, and
+ * choosing a tab brings it into view rather than leaving it half off-screen.
+ */
+function Tabs({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const strip = useRef<HTMLElement>(null);
+  const [edge, setEdge] = useState({ left: false, right: false });
+
+  const measure = useCallback(() => {
+    const el = strip.current;
+    if (!el) return;
+    const more = el.scrollWidth - el.clientWidth;
+    setEdge({ left: el.scrollLeft > 4, right: more > 4 && el.scrollLeft < more - 4 });
+  }, []);
+
+  useEffect(() => {
+    measure();
+    const el = strip.current;
+    el?.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    return () => {
+      el?.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+    };
+  }, [measure]);
+
+  // Keep the chosen tab visible, however narrow the phone.
+  useEffect(() => {
+    const el = strip.current?.querySelector<HTMLElement>('[aria-selected="true"]');
+    el?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    measure();
+  }, [tab, measure]);
+
+  return (
+    <div className="relative min-w-0">
+      <nav className="seg seg-scroll" role="tablist" aria-label="Sections" ref={strip} data-testid="tabs">
+        {TABS.map(([t, label]) => (
+          <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{label}</button>
+        ))}
+      </nav>
+      {edge.left && <span className="seg-fade seg-fade-left" aria-hidden="true" />}
+      {edge.right && <span className="seg-fade seg-fade-right" aria-hidden="true" data-testid="more-tabs" />}
+    </div>
+  );
+}
+
 function Dashboard(props: {
   who: string;
   userId: string;
@@ -400,17 +447,14 @@ function Dashboard(props: {
             F
           </div>
           <div>
-            <h1 className="font-display font-bold text-[26px] uppercase leading-none tracking-[0.01em] m-0">Flexr</h1>
+            {/* The brand, not the page: each tab supplies the page's own h1. */}
+            <div className="font-display font-bold text-[26px] uppercase leading-none tracking-[0.01em] m-0">Flexr</div>
             <p className="text-[12.5px] muted mt-0.5 mb-0">
               {who} · Plan: {store.plans[store.activePlanId]?.name}
             </p>
           </div>
         </div>
-        <nav className="seg seg-scroll" role="tablist" aria-label="Sections">
-          {TABS.map(([t, label]) => (
-            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{label}</button>
-          ))}
-        </nav>
+        <Tabs tab={tab} setTab={setTab} />
         <div className="flex items-center gap-3">
           <OfflineBadge />
           <span className="text-xs muted flex items-center gap-1.5" role="status" aria-live="polite">
@@ -446,7 +490,17 @@ function Dashboard(props: {
         </div>
       )}
 
-      {tab === "day" && <DayView store={store} update={update} date={date} setDate={setDate} onOpenPlan={() => setTab("plan")} />}
+      {tab === "day" && (
+        <DayView
+          store={store}
+          update={update}
+          date={date}
+          setDate={setDate}
+          onOpenPlan={() => setTab("plan")}
+          go={setTab}
+          userId={userId}
+        />
+      )}
       {tab === "trends" && (
         <TrendsView store={store} update={update} range={range} setRange={setRange} openDay={(d) => { setDate(d); setTab("day"); }} />
       )}

@@ -91,12 +91,12 @@ export default function ExercisesView({ store, update, lookupId, onLookupDone, o
   return (
     <section className="pb-8">
       <div className="mt-5 mb-4">
-        <div className="font-display text-3xl font-bold uppercase leading-none">
+        <h1 className="font-display text-3xl font-bold uppercase leading-none">
           Exercises
           <small className="block font-sans text-[12.5px] font-medium normal-case muted mt-1">
             870+ exercises with photos, step-by-step form and Flexr&apos;s own cues for the main lifts.
           </small>
-        </div>
+        </h1>
       </div>
 
       <div className="panel mb-4 flex flex-col gap-3">
@@ -251,7 +251,7 @@ function Detail({ ex, all, gifs, onBack, onOpen, onAdd }: { ex: Exercise; all: E
       </div>
 
       <div className="panel mb-4">
-        <h1 className="font-display text-2xl font-bold leading-tight m-0">{ex.n}</h1>
+        <h2 className="font-display text-2xl font-bold leading-tight m-0">{ex.n}</h2>
         <p className="text-sm muted mt-1 mb-3">
           {ex.pm.map(cap).join(", ")}
           {ex.sm.length > 0 && <> · also works {ex.sm.map(cap).join(", ")}</>}

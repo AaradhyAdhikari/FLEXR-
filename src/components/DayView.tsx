@@ -8,6 +8,7 @@ import { emptyDay, planForDay, Store } from "@/lib/storage";
 import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
 import FoodPicker from "./FoodPicker";
 import HealthSync from "./HealthSync";
+import StartHere from "./StartHere";
 import BodyPanel from "./BodyPanel";
 import { foodFrom, hasFood, lastLoggedDay, recentExtras, withoutAlreadyThere } from "@/lib/repeat";
 import { workoutsOn } from "@/lib/workouts";
@@ -20,6 +21,9 @@ type Props = {
   date: string;
   setDate: (d: string) => void;
   onOpenPlan?: () => void;
+  /** Jump to another tab, for the first-run checklist. */
+  go?: (tab: "day" | "workouts" | "exercises" | "trends" | "plan" | "coach") => void;
+  userId?: string;
 };
 
 function MacLine({ m }: { m: Macro }) {
@@ -33,7 +37,7 @@ function MacLine({ m }: { m: Macro }) {
   );
 }
 
-export default function DayView({ store, update, date, setDate, onOpenPlan }: Props) {
+export default function DayView({ store, update, date, setDate, onOpenPlan, go, userId }: Props) {
   const today = todayISO();
   const saved = store.days[date];
   const day = saved || emptyDay(date, store.activePlanId);
@@ -42,6 +46,16 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
   const grade = gradeOf(r.score);
   const logged = workoutsOn(store.workouts, date);
   const sleep = sleepSummary(store, 7, date);
+  // Has this day been touched at all? Until it has, the meters stay neutral
+  // instead of showing a wall of red zeroes at somebody who's done nothing wrong.
+  const touched =
+    r.logged ||
+    (day.water ?? 0) > 0 ||
+    (day.steps ?? 0) > 0 ||
+    (day.weight ?? 0) > 0 ||
+    (day.sleep ?? 0) > 0 ||
+    day.workout ||
+    (day.extras?.length ?? 0) > 0;
   const circ = 2 * Math.PI * 48;
   // "Same as yesterday", and the foods you log most often, both come from recent days.
   const previous = lastLoggedDay(store, date);
@@ -67,13 +81,13 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
   return (
     <section>
       <div className="flex flex-wrap items-center gap-2 mt-5 mb-4">
-        <div className="font-display text-3xl font-bold uppercase leading-none mr-auto">
+        <h1 className="font-display text-3xl font-bold uppercase leading-none mr-auto">
           {date === today ? "Today" : dayName(date)}
           <small className="block font-sans text-[12.5px] font-medium normal-case muted mt-1">
             {longDate(date)}
             {date === today ? ` · ${dayName(date)}` : ""}
           </small>
-        </div>
+        </h1>
         <div className="flex items-center gap-1.5">
           <button className="btn" aria-label="Previous day" onClick={() => setDate(addDays(date, -1))}>‹</button>
           <input type="date" className="input !w-auto" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} aria-label="Pick a date" />
@@ -81,6 +95,8 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
           <button className="btn btn-ghost" onClick={() => setDate(today)}>Today</button>
         </div>
       </div>
+
+      {date === today && go && userId && <StartHere store={store} go={go} userId={userId} />}
 
       {date === today && onOpenPlan && checkInReady(store, today) && (
         <div className="panel mb-4 flex flex-wrap items-center gap-3" style={{ borderColor: "var(--accent)" }}>
@@ -126,11 +142,11 @@ export default function DayView({ store, update, date, setDate, onOpenPlan }: Pr
           <div className="panel">
             <h2 className="h2">Targets</h2>
             <div className="flex flex-col gap-3.5">
-              <Meter label="Protein" k="p" val={r.p} target={r.targets.p} unit="g" pct={r.pct.p} />
-              <Meter label="Carbs" k="c" val={r.c} target={r.targets.c} unit="g" pct={r.pct.c} />
-              <Meter label="Fat" k="f" val={r.f} target={r.targets.f} unit="g" pct={r.pct.f} />
-              <Meter label="Water" k="water" val={r.water} target={r.targets.water} unit="L" pct={r.pct.water} dec={2} />
-              <Meter label="Steps" k="steps" val={r.steps} target={r.targets.steps} unit="steps" pct={r.pct.steps} />
+              <Meter label="Protein" k="p" val={r.p} target={r.targets.p} unit="g" pct={r.pct.p} started={touched} />
+              <Meter label="Carbs" k="c" val={r.c} target={r.targets.c} unit="g" pct={r.pct.c} started={touched} />
+              <Meter label="Fat" k="f" val={r.f} target={r.targets.f} unit="g" pct={r.pct.f} started={touched} />
+              <Meter label="Water" k="water" val={r.water} target={r.targets.water} unit="L" pct={r.pct.water} dec={2} started={touched} />
+              <Meter label="Steps" k="steps" val={r.steps} target={r.targets.steps} unit="steps" pct={r.pct.steps} started={touched} />
             </div>
           </div>
 

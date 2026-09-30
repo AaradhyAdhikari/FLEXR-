@@ -217,6 +217,24 @@ button {
   display: none;
 }
 
+/* Says there are more tabs than fit, without stealing a tap target. */
+.seg-fade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  pointer-events: none;
+  border-radius: 10px;
+}
+.seg-fade-right {
+  right: 0;
+  background: linear-gradient(to right, transparent, var(--bg) 78%);
+}
+.seg-fade-left {
+  left: 0;
+  background: linear-gradient(to left, transparent, var(--bg) 78%);
+}
+
 .seg button[aria-pressed="true"],
 .seg button[aria-selected="true"] {
   background: var(--panel);

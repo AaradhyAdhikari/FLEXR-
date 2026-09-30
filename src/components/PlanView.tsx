@@ -136,12 +136,12 @@ export default function PlanView({ store, update, profileAge, userId }: Props) {
   return (
     <section>
       <div className="mt-5 mb-4">
-        <div className="font-display text-3xl font-bold uppercase leading-none">
+        <h1 className="font-display text-3xl font-bold uppercase leading-none">
           Diet plans
           <small className="block font-sans text-[12.5px] font-medium normal-case muted mt-1">
             Your meals, foods and targets. Change amounts here and the Day page follows.
           </small>
-        </div>
+        </h1>
       </div>
 
       <div className="flex gap-2.5 flex-wrap mb-4">

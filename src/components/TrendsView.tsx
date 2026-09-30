@@ -58,12 +58,12 @@ export default function TrendsView({ store, update, range, setRange, openDay }: 
   return (
     <section>
       <div className="flex flex-wrap items-center gap-2 mt-5 mb-4">
-        <div className="font-display text-3xl font-bold uppercase leading-none mr-auto">
+        <h1 className="font-display text-3xl font-bold uppercase leading-none mr-auto">
           Trends
           <small className="block font-sans text-[12.5px] font-medium normal-case muted mt-1">
             {shortDate(days[0])} – {shortDate(today)}
           </small>
-        </div>
+        </h1>
         <div className="seg" role="group" aria-label="Range">
           {([7, 14, 30] as const).map((r) => (
             <button key={r} aria-pressed={range === r} onClick={() => setRange(r)}>{r} days</button>

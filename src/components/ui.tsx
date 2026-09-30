@@ -30,9 +30,11 @@ export function Meter(props: {
   unit: string;
   pct: number | null;
   dec?: number;
+  /** False before anything is logged: a day you haven't started isn't a day you're failing. */
+  started?: boolean;
 }) {
-  const { label, k, val, target, unit, pct, dec = 0 } = props;
-  const st = statusOf(k, pct);
+  const { label, k, val, target, unit, pct, dec = 0, started = true } = props;
+  const st = started ? statusOf(k, pct) : "none";
   // Scale to at least 130% so the target tick sits inside the bar and overshoot stays visible.
   const scale = Math.max(130, pct || 0);
   const width = Math.min(100, ((pct || 0) / scale) * 100);
@@ -43,7 +45,7 @@ export function Meter(props: {
         <span className="num muted">
           <strong style={{ color: "var(--ink)" }}>{fmt(val, dec)}</strong> / {fmt(target, dec)} {unit}
           <span className="text-xs font-bold ml-1.5" style={{ color: toneColor(st) }}>
-            {pct == null ? "" : `${pct}%`}
+            {pct == null || !started ? "" : `${pct}%`}
           </span>
         </span>
       </div>

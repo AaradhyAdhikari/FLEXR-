@@ -77,12 +77,12 @@ export default function CoachPanel({ store, update, today = todayISO() }: Props)
   return (
     <section data-testid="coach">
       <div className="flex flex-wrap items-center gap-2 mt-5 mb-4">
-        <div className="font-display text-3xl font-bold uppercase leading-none mr-auto">
+        <h1 className="font-display text-3xl font-bold uppercase leading-none mr-auto">
           Coach
           <small className="block font-sans text-[12.5px] font-medium normal-case muted mt-1">
             Knows your plan, your logs and your prices. Its numbers are checked here before you see them.
           </small>
-        </div>
+        </h1>
       </div>
 
       <div className="panel">
