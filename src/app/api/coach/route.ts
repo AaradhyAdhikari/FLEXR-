@@ -241,17 +241,17 @@ export async function POST(req: NextRequest) {
   try {
     let model = resolved ?? MODEL;
     let res = await ask(model);
+    const tried = [model];
 
-    // "No such model" is worth one retry against whatever this key can use.
-    if ((res.status === 404 || res.status === 400) && !resolved) {
+    // Worth trying another model when this one says "no such model" or "no quota":
+    // a free-tier allowance is granted per model, so a neighbour may still answer.
+    if (!resolved && (res.status === 404 || res.status === 400 || res.status === 429)) {
       const options = await usableModels();
-      const next = options.find((m) => m !== model);
-      if (next) {
+      for (const next of options.filter((m) => !tried.includes(m)).slice(0, 2)) {
+        tried.push(next);
         res = await ask(next);
-        if (res.ok) {
-          resolved = next;
-          model = next;
-        }
+        model = next;
+        if (res.ok) break;
       }
     }
 
@@ -259,8 +259,13 @@ export async function POST(req: NextRequest) {
       // Gemini's quotas are per model as well as per key, so the message matters:
       // "this model has no free tier" and "you've asked too often" both land here.
       const why = await upstreamError(res);
+      const which = tried.length > 1 ? `${tried.join(", ")} all have no quota` : `"${model}" has no quota`;
       return NextResponse.json(
-        { error: `Gemini turned the request down on quota for "${model}".${why ? ` Google said: ${why}` : ""}` },
+        {
+          error:
+            `Gemini refused on quota: ${which}. ${tried.length > 1 ? "That usually means the key's Google project has no free-tier allowance, which is fixed in Google AI Studio rather than here. " : ""}` +
+            (why ? `Google said: ${why}` : ""),
+        },
         { status: 429 }
       );
     }
@@ -271,7 +276,7 @@ export async function POST(req: NextRequest) {
     if (!res.ok) {
       const why = await upstreamError(res);
       return NextResponse.json(
-        { error: `The coach couldn't answer (model "${model}", HTTP ${res.status}).${why ? ` Google said: ${why}` : ""}` },
+        { error: `The coach couldn't answer (tried ${tried.join(", ")}; HTTP ${res.status}).${why ? ` Google said: ${why}` : ""}` },
         { status: 502 }
       );
     }
