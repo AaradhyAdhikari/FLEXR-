@@ -118,7 +118,77 @@ Rules you do not break:
 - Be brief and specific. No preamble, no motivational filler, no emoji. Say the thing.
 - Where their own logged data contradicts what they're asking for, point at it.`;
 
+
+/**
+ * Which model to call.
+ *
+ * Model names come and go, and a key is only entitled to some of them, so a
+ * hard-coded name is a time bomb. The configured one is tried first; if Gemini
+ * says it doesn't exist, the account's own model list decides, and the answer is
+ * remembered for the life of the server process.
+ */
+let resolved: string | null = null;
+
+/** Google's error text, trimmed to something safe and short to show a human. */
+async function upstreamError(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: { message?: string; status?: string } };
+    const msg = body?.error?.message ?? "";
+    // Never echo anything that could carry the key back to the browser.
+    return msg.replace(/key=[\w-]+/gi, "key=…").slice(0, 200);
+  } catch {
+    return "";
+  }
+}
+
+/** Models this key can actually use for generateContent, best guess first. */
+export async function usableModels(): Promise<string[]> {
+  const res = await fetch(`${URL_BASE}/v1beta/models`, {
+    headers: { "x-goog-api-key": KEY },
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
+  const data = (await res.json()) as { models?: { name?: string; supportedGenerationMethods?: string[] }[] };
+  const names = (data.models ?? [])
+    .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent"))
+    .map((m) => (m.name ?? "").replace(/^models\//, ""))
+    .filter(Boolean);
+  // Prefer a current flash model: fast and the cheapest thing that does this job.
+  const score = (n: string) =>
+    (/flash/.test(n) ? 0 : /pro/.test(n) ? 1 : 2) +
+    (/preview|exp|thinking|tts|image|embedding|vision/.test(n) ? 4 : 0);
+  return names.sort((a, b) => score(a) - score(b) || b.localeCompare(a));
+}
+
 type Body = { question?: unknown; context?: unknown };
+
+
+/**
+ * What the coach is working with. No secrets: whether a key is set, which model
+ * is configured, and which models that key can actually use — enough to tell a
+ * missing key from a wrong model name without reading server logs.
+ */
+export async function GET() {
+  if (!KEY) {
+    return NextResponse.json({ keySet: false, model: MODEL, models: [], note: "No GEMINI_API_KEY on this server." });
+  }
+  try {
+    const models = await usableModels();
+    return NextResponse.json({
+      keySet: true,
+      model: resolved ?? MODEL,
+      configured: MODEL,
+      usable: models.slice(0, 20),
+      note: models.length
+        ? models.includes(MODEL)
+          ? "The configured model is available."
+          : `The configured model is not in this key's list; "${models[0]}" would be used instead.`
+        : "The key is set but Gemini listed no usable models for it.",
+    }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return NextResponse.json({ keySet: true, model: MODEL, usable: [], note: "Couldn't reach Gemini to list models." }, { status: 502 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   if (!KEY) {
@@ -151,8 +221,8 @@ export async function POST(req: NextRequest) {
   if (hit === "burst") return NextResponse.json({ error: "One at a time — try again in a few seconds." }, { status: 429 });
   if (hit === "day") return NextResponse.json({ error: "The coach has hit its limit for today. It resets tomorrow." }, { status: 429 });
 
-  try {
-    const res = await fetch(`${URL_BASE}/v1beta/models/${MODEL}:generateContent`, {
+  const ask = (model: string) =>
+    fetch(`${URL_BASE}/v1beta/models/${model}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": KEY },
       body: JSON.stringify({
@@ -168,15 +238,38 @@ export async function POST(req: NextRequest) {
       cache: "no-store",
     });
 
+  try {
+    let model = resolved ?? MODEL;
+    let res = await ask(model);
+
+    // "No such model" is worth one retry against whatever this key can use.
+    if ((res.status === 404 || res.status === 400) && !resolved) {
+      const options = await usableModels();
+      const next = options.find((m) => m !== model);
+      if (next) {
+        res = await ask(next);
+        if (res.ok) {
+          resolved = next;
+          model = next;
+        }
+      }
+    }
+
     if (res.status === 429) {
       return NextResponse.json({ error: "Gemini's free allowance is used up for now. Try again later." }, { status: 429 });
     }
     if (res.status === 401 || res.status === 403) {
-      return NextResponse.json({ error: "The coach's key was refused. Check GEMINI_API_KEY." }, { status: 502 });
+      const why = await upstreamError(res);
+      return NextResponse.json({ error: `The coach's key was refused. Check GEMINI_API_KEY.${why ? ` Google said: ${why}` : ""}` }, { status: 502 });
     }
     if (!res.ok) {
-      return NextResponse.json({ error: "The coach couldn't answer just now." }, { status: 502 });
+      const why = await upstreamError(res);
+      return NextResponse.json(
+        { error: `The coach couldn't answer (model "${model}", HTTP ${res.status}).${why ? ` Google said: ${why}` : ""}` },
+        { status: 502 }
+      );
     }
+    if (res.ok && !resolved) resolved = model;
 
     const data = (await res.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
