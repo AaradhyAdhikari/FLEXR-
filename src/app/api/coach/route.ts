@@ -256,7 +256,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (res.status === 429) {
-      return NextResponse.json({ error: "Gemini's free allowance is used up for now. Try again later." }, { status: 429 });
+      // Gemini's quotas are per model as well as per key, so the message matters:
+      // "this model has no free tier" and "you've asked too often" both land here.
+      const why = await upstreamError(res);
+      return NextResponse.json(
+        { error: `Gemini turned the request down on quota for "${model}".${why ? ` Google said: ${why}` : ""}` },
+        { status: 429 }
+      );
     }
     if (res.status === 401 || res.status === 403) {
       const why = await upstreamError(res);
