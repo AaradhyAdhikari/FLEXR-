@@ -4,6 +4,34 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
+
+/**
+ * What went wrong, in words that point at the fix.
+ *
+ * Supabase distinguishes "we wouldn't send this" from "we tried and the mail
+ * server refused", and those need completely different responses — so the real
+ * message is passed on rather than flattened into "check the address".
+ */
+export function signInProblem(message: string): string {
+  const m = (message || "").trim();
+  if (/rate|limit|seconds|too many/i.test(m)) {
+    return "Too many sign-in emails for now. Wait a few minutes and try again.";
+  }
+  // Checked before the mail-service case on purpose: "email address" contains
+  // "mail", and blaming the mail server for a typo would send someone the wrong way.
+  if (/invalid|unable to validate/i.test(m)) {
+    return "That email address was rejected. Check it for typos.";
+  }
+  if (/error sending|smtp|mailer/i.test(m)) {
+    // The account is fine; the thing that posts the email isn't.
+    return `The email couldn't be sent — this is the mail service, not your address. Supabase said: "${m}". Setting up SMTP under Authentication → Emails usually fixes it.`;
+  }
+  if (/signups? not allowed|disabled/i.test(m)) {
+    return `New accounts are turned off for this project. Supabase said: "${m}".`;
+  }
+  return m ? `Couldn't send the email. Supabase said: "${m}".` : "Couldn't send the email. Try again in a moment.";
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /** Email sign-in: Supabase emails a link (and a code, if the email template includes one). */
@@ -39,11 +67,7 @@ export default function CloudLogin() {
     });
     setBusy(false);
     if (error) {
-      setError(
-        /rate|limit|seconds/i.test(error.message)
-          ? "Too many emails sent. Wait a minute and try again."
-          : "Couldn't send the email. Check the address and try again."
-      );
+      setError(signInProblem(error.message));
       return;
     }
     setEmail(clean);
