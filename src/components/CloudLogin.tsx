@@ -17,9 +17,18 @@ export function signInProblem(message: string): string {
   if (/rate|limit|seconds|too many/i.test(m)) {
     return "Too many sign-in emails for now. Wait a few minutes and try again.";
   }
+  // A misconfigured project URL answers "Invalid path specified in request URL",
+  // which has nothing to do with the address typed in. Checked first, because
+  // every other rule below would happily misread it.
+  if (/invalid path|PGRST/i.test(m)) {
+    return `Flexr is pointed at the wrong Supabase address, so sign-in never reaches it. SUPABASE_URL should be the bare project URL, with nothing after .supabase.co. Supabase said: "${m}".`;
+  }
+  if (/invalid api key|jwt/i.test(m)) {
+    return `Supabase refused Flexr's key. Check SUPABASE_ANON_KEY. It said: "${m}".`;
+  }
   // Checked before the mail-service case on purpose: "email address" contains
   // "mail", and blaming the mail server for a typo would send someone the wrong way.
-  if (/invalid|unable to validate/i.test(m)) {
+  if (/unable to validate|email address.*invalid|invalid.*email address/i.test(m)) {
     return "That email address was rejected. Check it for typos.";
   }
   if (/error sending|smtp|mailer/i.test(m)) {
