@@ -14,7 +14,7 @@
  * you were given.
  */
 
-import { CatalogFood, macrosForGrams, searchFoods } from "./foodSearch";
+import { CatalogFood, macrosForGrams, scoreMatch, searchFoods } from "./foodSearch";
 import { ExtraItem, Macro } from "./types";
 
 /** One thing the model heard, in the words it was said in. */
@@ -66,6 +66,72 @@ export function gramsEaten(spoken: SpokenItem, dish: CatalogFood): number | null
   return null;
 }
 
+/**
+ * Words that carry no dish in them. Dropped first when a name has to be
+ * loosened, because losing them costs nothing.
+ */
+const FILLER = new Set(["of", "with", "and", "a", "an", "the", "some", "plain", "fresh", "hot", "homemade", "veg", "vegetable", "regular", "normal", "medium", "small", "large"]);
+
+/** Every ordered subset of `words`, longest first, each keeping the last word where it can. */
+function loosenings(words: string[]): string[][] {
+  const out: string[][] = [];
+  const n = Math.min(words.length, 5);
+  const head = words.slice(0, n);
+  for (let keep = n; keep >= 1; keep--) {
+    const found: string[][] = [];
+    const walk = (i: number, picked: number[]) => {
+      if (picked.length === keep) { found.push(picked.map((j) => head[j])); return; }
+      if (i >= n) return;
+      walk(i + 1, [...picked, i]);
+      walk(i + 1, picked);
+    };
+    walk(0, []);
+    out.push(...found);
+  }
+  return out;
+}
+
+/** What the search actually matched on, so a loosened match can be owned up to. */
+export type Found = { dish: CatalogFood; used: string };
+
+/**
+ * The dish behind a name, loosening the name only as far as it has to.
+ *
+ * Restaurants name things the data doesn't: "butter naan" is a naan, "paneer
+ * butter masala" is paneer in butter sauce. Every word is tried first; failing
+ * that, words are dropped, fillers first, and the fewest words are dropped
+ * that find anything at all. Among equally short attempts the best-matching
+ * dish wins, which is why "paneer butter masala" lands on the paneer rather
+ * than on a dosa that happens to say masala.
+ */
+export function findDish(name: string, catalog: CatalogFood[]): Found | null {
+  const words = name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  if (!words.length) return null;
+
+  const direct = searchFoods(words.join(" "), catalog, 1)[0];
+  if (direct) return { dish: direct, used: words.join(" ") };
+
+  const meaty = words.filter((w) => !FILLER.has(w));
+  const base = meaty.length ? meaty : words;
+  const whole = base.join(" ");
+
+  let size = -1;
+  let best: (Found & { score: number }) | null = null;
+  for (const subset of loosenings(base)) {
+    const q = subset.join(" ");
+    if (q === whole) continue; // already tried
+    if (subset.length === 1 && subset[0].length < 3) continue;
+    // Once something matched, only keep looking among attempts just as long.
+    if (best && subset.length < size) break;
+    const hit = searchFoods(q, catalog, 1)[0];
+    if (!hit) continue;
+    const score = scoreMatch(q, hit.name);
+    if (!best || score > best.score) best = { dish: hit, used: q, score };
+    size = subset.length;
+  }
+  return best ? { dish: best.dish, used: best.used } : null;
+}
+
 /** A dish we found, with the weight and macros worked out. */
 export type MealEntry = {
   spoken: SpokenItem;
@@ -74,6 +140,8 @@ export type MealEntry = {
   macro: Macro;
   /** How the weight was arrived at, so it can be shown and corrected. */
   how: string;
+  /** Set when the dish was found on fewer words than were said. */
+  loose?: string;
 };
 
 /** Something named that couldn't be turned into macros, and why not. */
@@ -96,11 +164,12 @@ export function readMeal(spoken: SpokenItem[], catalog: CatalogFood[]): MealRead
     const name = (s.item || "").trim();
     if (!name) continue;
 
-    const dish = searchFoods(name, catalog, 1)[0];
-    if (!dish) {
+    const found = findDish(name, catalog);
+    if (!found) {
       missed.push({ spoken: s, why: `No dish in the data matches "${name}".` });
       continue;
     }
+    const dish = found.dish;
 
     const grams = gramsEaten(s, dish);
     if (grams === null) {
@@ -119,7 +188,15 @@ export function readMeal(spoken: SpokenItem[], catalog: CatalogFood[]): MealRead
       ? `${Math.round(grams)} g as you said`
       : `${s.qty > 0 ? s.qty : 1} × ${dish.sv?.u ?? "serving"} (${dish.sv?.g ?? 0} g each) = ${Math.round(grams)} g`;
 
-    entries.push({ spoken: s, dish, grams, macro: macrosForGrams(dish, grams), how });
+    const asked = name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    entries.push({
+      spoken: s,
+      dish,
+      grams,
+      macro: macrosForGrams(dish, grams),
+      how,
+      loose: found.used === asked ? undefined : found.used,
+    });
   }
 
   const total = entries.reduce<Macro>(

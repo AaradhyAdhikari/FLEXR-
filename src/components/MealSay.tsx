@@ -156,6 +156,11 @@ export default function MealSay({ myFoods, onAdd }: Props) {
                   {Math.round(e.macro.kcal)} kcal · P {r1(e.macro.p)} · C {r1(e.macro.c)} · F {r1(e.macro.f)}
                   <span className="muted"> — {e.how}</span>
                 </div>
+                {e.loose && (
+                  <div className="text-[11.5px] mt-0.5" style={{ color: "var(--warn)" }}>
+                    Closest match on “{e.loose}” — check this is the right dish.
+                  </div>
+                )}
               </div>
             ))}
           </div>
