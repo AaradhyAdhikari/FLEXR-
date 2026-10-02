@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CatalogFood, loadIndb, macrosForGrams, mineAsCatalog } from "@/lib/foodSearch";
-import { asExtras, EATING_OUT_NOTE, MealEntry, readMeal, SpokenItem } from "@/lib/meal";
+import { asExtras, EATING_OUT_NOTE, MealEntry, readMeal, SpokenItem, withDish } from "@/lib/meal";
 import { ExtraItem, Food } from "@/lib/types";
 
 type Props = {
@@ -66,6 +66,21 @@ export default function MealSay({ myFoods, onAdd }: Props) {
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Correcting the dish re-weighs it against that dish's own serving. */
+  function pickDish(i: number, id: string) {
+    setEntries((list) => {
+      if (!list) return list;
+      const e = list[i];
+      const dish = e.options.find((o) => o.id === id);
+      if (!dish) return list;
+      const next = withDish(e, dish);
+      if (!next) return list;
+      const out = [...list];
+      out[i] = next;
+      return out;
+    });
   }
 
   /** Correcting a weight re-does that dish's macros from the dish data. */
@@ -136,9 +151,22 @@ export default function MealSay({ myFoods, onAdd }: Props) {
             {entries.map((e, i) => (
               <div key={`${e.dish.id}-${i}`} className="text-[13px] px-2.5 py-1.5 rounded-lg" style={{ background: "var(--panel-2)" }}>
                 <div className="flex items-center gap-2">
-                  <span className="flex-1 min-w-0 truncate">
-                    <b>{e.dish.name}</b>
-                    <span className="muted"> · you said “{e.spoken.item}{e.spoken.qty > 0 ? ` ${e.spoken.qty}${e.spoken.unit ? " " + e.spoken.unit : ""}` : ""}”</span>
+                  <span className="flex-1 min-w-0">
+                    {e.options.length > 1 ? (
+                      <select
+                        className="input !py-1 w-full max-w-[260px] text-[13px]"
+                        value={e.dish.id}
+                        aria-label={`Which dish you ate for “${e.spoken.item}”`}
+                        onChange={(ev) => pickDish(i, ev.target.value)}
+                      >
+                        {e.options.map((o) => (
+                          <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <b>{e.dish.name}</b>
+                    )}
+                    <span className="muted block text-[11.5px] truncate">you said “{e.spoken.item}{e.spoken.qty > 0 ? ` ${e.spoken.qty}${e.spoken.unit ? " " + e.spoken.unit : ""}` : ""}”</span>
                   </span>
                   <input
                     type="number"
@@ -158,7 +186,7 @@ export default function MealSay({ myFoods, onAdd }: Props) {
                 </div>
                 {e.loose && (
                   <div className="text-[11.5px] mt-0.5" style={{ color: "var(--warn)" }}>
-                    Closest match on “{e.loose}” — check this is the right dish.
+                    Closest match on “{e.loose}” — pick the right dish above if this isn&apos;t it.
                   </div>
                 )}
               </div>
