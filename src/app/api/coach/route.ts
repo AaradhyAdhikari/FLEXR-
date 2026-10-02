@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { askGemini, GEMINI_KEY, GEMINI_MODEL, resolvedModel, usableModels } from "@/lib/gemini";
 
 /**
  * The coach: asks Gemini a question about your own training and food data.
@@ -8,10 +9,6 @@ import { NextRequest, NextResponse } from "next/server";
  * the model suggests food and sessions, the app works out what they actually add
  * up to. Nothing here is stored: the request is forwarded and forgotten.
  */
-
-const URL_BASE = process.env.GEMINI_URL || "https://generativelanguage.googleapis.com";
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-const KEY = process.env.GEMINI_API_KEY || "";
 
 // A free tier is a small tier. Two limiters: a burst, and a rough daily cap.
 const minute: number[] = [];
@@ -119,47 +116,6 @@ Rules you do not break:
 - Where their own logged data contradicts what they're asking for, point at it.`;
 
 
-/**
- * Which model to call.
- *
- * Model names come and go, and a key is only entitled to some of them, so a
- * hard-coded name is a time bomb. The configured one is tried first; if Gemini
- * says it doesn't exist, the account's own model list decides, and the answer is
- * remembered for the life of the server process.
- */
-let resolved: string | null = null;
-
-/** Google's error text, trimmed to something safe and short to show a human. */
-async function upstreamError(res: Response): Promise<string> {
-  try {
-    const body = (await res.json()) as { error?: { message?: string; status?: string } };
-    const msg = body?.error?.message ?? "";
-    // Never echo anything that could carry the key back to the browser.
-    return msg.replace(/key=[\w-]+/gi, "key=…").slice(0, 200);
-  } catch {
-    return "";
-  }
-}
-
-/** Models this key can actually use for generateContent, best guess first. */
-export async function usableModels(): Promise<string[]> {
-  const res = await fetch(`${URL_BASE}/v1beta/models`, {
-    headers: { "x-goog-api-key": KEY },
-    cache: "no-store",
-  });
-  if (!res.ok) return [];
-  const data = (await res.json()) as { models?: { name?: string; supportedGenerationMethods?: string[] }[] };
-  const names = (data.models ?? [])
-    .filter((m) => (m.supportedGenerationMethods ?? []).includes("generateContent"))
-    .map((m) => (m.name ?? "").replace(/^models\//, ""))
-    .filter(Boolean);
-  // Prefer a current flash model: fast and the cheapest thing that does this job.
-  const score = (n: string) =>
-    (/flash/.test(n) ? 0 : /pro/.test(n) ? 1 : 2) +
-    (/preview|exp|thinking|tts|image|embedding|vision/.test(n) ? 4 : 0);
-  return names.sort((a, b) => score(a) - score(b) || b.localeCompare(a));
-}
-
 type Body = { question?: unknown; context?: unknown };
 
 
@@ -169,29 +125,29 @@ type Body = { question?: unknown; context?: unknown };
  * missing key from a wrong model name without reading server logs.
  */
 export async function GET() {
-  if (!KEY) {
-    return NextResponse.json({ keySet: false, model: MODEL, models: [], note: "No GEMINI_API_KEY on this server." });
+  if (!GEMINI_KEY) {
+    return NextResponse.json({ keySet: false, model: GEMINI_MODEL, models: [], note: "No GEMINI_API_KEY on this server." });
   }
   try {
     const models = await usableModels();
     return NextResponse.json({
       keySet: true,
-      model: resolved ?? MODEL,
-      configured: MODEL,
+      model: resolvedModel() ?? GEMINI_MODEL,
+      configured: GEMINI_MODEL,
       usable: models.slice(0, 20),
       note: models.length
-        ? models.includes(MODEL)
+        ? models.includes(GEMINI_MODEL)
           ? "The configured model is available."
           : `The configured model is not in this key's list; "${models[0]}" would be used instead.`
         : "The key is set but Gemini listed no usable models for it.",
     }, { headers: { "Cache-Control": "no-store" } });
   } catch {
-    return NextResponse.json({ keySet: true, model: MODEL, usable: [], note: "Couldn't reach Gemini to list models." }, { status: 502 });
+    return NextResponse.json({ keySet: true, model: GEMINI_MODEL, usable: [], note: "Couldn't reach Gemini to list models." }, { status: 502 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  if (!KEY) {
+  if (!GEMINI_KEY) {
     return NextResponse.json(
       { error: "The coach isn't set up on this server. Add a GEMINI_API_KEY and redeploy." },
       { status: 503 }
@@ -221,98 +177,19 @@ export async function POST(req: NextRequest) {
   if (hit === "burst") return NextResponse.json({ error: "One at a time — try again in a few seconds." }, { status: 429 });
   if (hit === "day") return NextResponse.json({ error: "The coach has hit its limit for today. It resets tomorrow." }, { status: 429 });
 
-  const ask = (model: string) =>
-    fetch(`${URL_BASE}/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": KEY },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents: [{ role: "user", parts: [{ text: `Here is my data:\n${context}\n\nMy question: ${question}` }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: SCHEMA,
-          temperature: 0.4,
-          maxOutputTokens: 2048,
-        },
-      }),
-      cache: "no-store",
-    });
+  const asked = await askGemini({
+    system: SYSTEM,
+    parts: [{ text: `Here is my data:\n${context}\n\nMy question: ${question}` }],
+    schema: SCHEMA,
+    temperature: 0.4,
+    maxOutputTokens: 2048,
+  });
 
-  try {
-    let model = resolved ?? MODEL;
-    let res = await ask(model);
-    const tried = [model];
+  if (!asked.ok) return NextResponse.json({ error: asked.error }, { status: asked.status });
 
-    // Worth trying another model when this one says "no such model" or "no quota":
-    // a free-tier allowance is granted per model, so a neighbour may still answer.
-    if (!resolved && (res.status === 404 || res.status === 400 || res.status === 429)) {
-      const options = await usableModels();
-      for (const next of options.filter((m) => !tried.includes(m)).slice(0, 2)) {
-        tried.push(next);
-        res = await ask(next);
-        model = next;
-        if (res.ok) break;
-      }
-    }
-
-    if (res.status === 429) {
-      // Gemini's quotas are per model as well as per key, so the message matters:
-      // "this model has no free tier" and "you've asked too often" both land here.
-      const why = await upstreamError(res);
-      const which = tried.length > 1 ? `${tried.join(", ")} all have no quota` : `"${model}" has no quota`;
-      return NextResponse.json(
-        {
-          error:
-            `Gemini refused on quota: ${which}. ${tried.length > 1 ? "That usually means the key's Google project has no free-tier allowance, which is fixed in Google AI Studio rather than here. " : ""}` +
-            (why ? `Google said: ${why}` : ""),
-        },
-        { status: 429 }
-      );
-    }
-    if (res.status === 401 || res.status === 403) {
-      const why = await upstreamError(res);
-      return NextResponse.json({ error: `The coach's key was refused. Check GEMINI_API_KEY.${why ? ` Google said: ${why}` : ""}` }, { status: 502 });
-    }
-    if (!res.ok) {
-      const why = await upstreamError(res);
-      return NextResponse.json(
-        { error: `The coach couldn't answer (tried ${tried.join(", ")}; HTTP ${res.status}).${why ? ` Google said: ${why}` : ""}` },
-        { status: 502 }
-      );
-    }
-    if (res.ok && !resolved) resolved = model;
-
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
-      promptFeedback?: { blockReason?: string };
-    };
-
-    if (data.promptFeedback?.blockReason) {
-      return NextResponse.json({ error: "The coach declined to answer that one." }, { status: 422 });
-    }
-    const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-    if (!text.trim()) {
-      const why = data.candidates?.[0]?.finishReason;
-      return NextResponse.json(
-        { error: why === "MAX_TOKENS" ? "The answer ran long and got cut off. Ask for something narrower." : "The coach came back empty." },
-        { status: 502 }
-      );
-    }
-
-    let answer: unknown;
-    try {
-      answer = JSON.parse(text);
-    } catch {
-      // The schema should prevent this, but a malformed answer is not something
-      // to hand on to the app as if it were data.
-      return NextResponse.json({ error: "The coach's answer didn't make sense. Try asking again." }, { status: 502 });
-    }
-    if (!answer || typeof answer !== "object" || typeof (answer as { reply?: unknown }).reply !== "string") {
-      return NextResponse.json({ error: "The coach's answer didn't make sense. Try asking again." }, { status: 502 });
-    }
-
-    return NextResponse.json(answer, { headers: { "Cache-Control": "no-store" } });
-  } catch {
-    return NextResponse.json({ error: "Couldn't reach the coach." }, { status: 502 });
+  const answer = asked.data;
+  if (!answer || typeof answer !== "object" || typeof (answer as { reply?: unknown }).reply !== "string") {
+    return NextResponse.json({ error: "The coach's answer didn't make sense. Try asking again." }, { status: 502 });
   }
+  return NextResponse.json(answer, { headers: { "Cache-Control": "no-store" } });
 }

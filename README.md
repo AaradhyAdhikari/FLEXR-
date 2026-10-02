@@ -54,7 +54,7 @@ Set these in Vercel (Settings → Environment Variables) and, for local runs, in
 | `WORKOUTX_API_KEY` | WorkoutX key for exercise animations (server-only) |
 | `GEMINI_API_KEY` | Google AI Studio key for the Coach tab (server-only). Leave it out and the Coach tab says it isn't set up; everything else works. |
 | `GEMINI_MODEL` | Optional. Which Gemini model to try first, default `gemini-2.5-flash`. If your key can't use it, the coach picks one it can and sticks with it. `GET /api/coach` says which models your key has. |
-| `GEMINI_PER_MINUTE` / `GEMINI_PER_DAY` | Optional caps on coach requests, default 6 a minute and 80 a day — sized for a free key. |
+| `GEMINI_PER_MINUTE` / `GEMINI_PER_DAY` | Optional caps on coach requests, default 6 a minute and 80 a day — sized for a free key. The bill reader shares the per-minute cap. |
 
 ### 4. Run locally
 

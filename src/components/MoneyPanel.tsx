@@ -15,6 +15,8 @@ import {
   swaps,
 } from "@/lib/money";
 import { Store } from "@/lib/storage";
+import BuyLinks from "./BuyLinks";
+import ReceiptScan from "./ReceiptScan";
 import { NumInput } from "./ui";
 
 type Props = {
@@ -48,7 +50,9 @@ export default function MoneyPanel({ store, update, range, today = todayISO() }:
         <p className="text-sm muted m-0">
           None of your foods have a price yet. Put what you pay in the {CURRENCY} box on the Plan tab — the few things you buy
           every week is enough — and this turns into what your diet costs, where the money goes, and what to eat on a set budget.
+          Or photograph a bill and let it fill them in.
         </p>
+        <ReceiptScan store={store} update={update} />
       </div>
     );
   }
@@ -136,7 +140,11 @@ export default function MoneyPanel({ store, update, range, today = todayISO() }:
         </div>
       )}
 
+      <ReceiptScan store={store} update={update} />
+
       <Planner store={store} update={update} defaultBudget={budget} />
+
+      <BuyLinks suggestions={protein.map((v) => v.food.name)} />
     </div>
   );
 }
