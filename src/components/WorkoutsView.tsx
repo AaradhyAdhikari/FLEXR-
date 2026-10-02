@@ -11,13 +11,13 @@ import {
   progressNote, sortedWorkouts, supersetLabels, WORKOUT_TEMPLATES, workoutVolume,
 } from "@/lib/workouts";
 import { BARS, plateLine, platesFor } from "@/lib/plates";
+import { clock, lastRest, leftOf, rememberRest, restParts, restSeconds } from "@/lib/rest";
 import { Chart, NumInput } from "./ui";
 import RoutinesPanel from "./RoutinesPanel";
 import { routineFromWorkout, workoutFromRoutine } from "@/lib/routines";
 import { Routine } from "@/lib/types";
 
 type Update = (fn: (s: Store) => Store) => void;
-const REST_SECONDS = 90;
 
 /** Re-render every `ms` (for timers). */
 function useNow(ms: number) {
@@ -256,11 +256,30 @@ function WorkoutEditor(props: {
   const { store, workout: w, edit, onBack, onFinish, onDelete, onProgress, onHowTo, onSaveRoutine } = props;
   const all = store.workouts ?? {};
   const [restEnd, setRestEnd] = useState<number | null>(null);
+  const [restTotal, setRestTotal] = useState(0); // the length asked for, in seconds
+  // How long you asked for, in two boxes. Empty until you say — Flexr doesn't guess.
+  const [restMin, setRestMin] = useState<number | null>(null);
+  const [restSec, setRestSec] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const now = useNow(1000);
-  const restLeft = restEnd ? Math.ceil((restEnd - now) / 1000) : 0;
+  // The per-second tick can be up to a second stale when Start is pressed, which
+  // would show 2:31 for a 2:30 rest. Clamping to the length actually asked for
+  // keeps the first tick honest without reading the clock during a render.
+  const restLeft = Math.min(restTotal, leftOf(restEnd, now));
+  const wanted = restSeconds(restMin, restSec);
   const labels = supersetLabels(w.exercises);
   const [buzzed, setBuzzed] = useState<number | null>(null);
+
+  // Start the boxes at whatever you last asked for, so set two isn't retyping set one.
+  useEffect(() => {
+    const was = lastRest();
+    if (was == null) return;
+    const { min, sec } = restParts(was);
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setRestMin(min || null);
+    setRestSec(sec || null);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
 
   // Buzz once when rest is over (on phones that support it).
   useEffect(() => {
@@ -325,7 +344,6 @@ function WorkoutEditor(props: {
             onRemove={() => edit((d) => { d.exercises.splice(xi, 1); })}
             onProgress={() => onProgress(exerciseKey(ex), ex.name)}
             onHowTo={ex.exerciseId && onHowTo ? () => onHowTo(ex.exerciseId!) : undefined}
-            onSetDone={() => setRestEnd(Date.now() + REST_SECONDS * 1000)}
           />
         ))}
       </div>
@@ -360,14 +378,58 @@ function WorkoutEditor(props: {
         )}
       </div>
 
-      {restEnd && restLeft > -3 && (
+      {/* The rest timer. It never starts itself: you set the length and start it. */}
+      {!w.finishedAt && (
         <div className="fixed left-0 right-0 bottom-0 z-20 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-2" style={{ background: "linear-gradient(transparent, var(--bg) 35%)" }}>
-          <div className="max-w-[640px] mx-auto panel flex items-center gap-3 !py-2.5" role="timer" aria-live="off" style={{ borderColor: restLeft > 0 ? "var(--accent)" : "var(--good)" }}>
-            <span className="font-display text-2xl font-bold num w-16">{restLeft > 0 ? `${Math.floor(restLeft / 60)}:${String(restLeft % 60).padStart(2, "0")}` : "Go!"}</span>
-            <span className="text-sm flex-1">{restLeft > 0 ? "Rest" : "Rest over. Next set."}</span>
-            {restLeft > 0 && <button className="btn btn-sm" onClick={() => setRestEnd((r) => (r ?? Date.now()) + 30000)}>+30s</button>}
-            <button className="btn btn-sm btn-ghost" onClick={() => setRestEnd(null)}>{restLeft > 0 ? "Skip" : "Close"}</button>
-          </div>
+          {restEnd && restLeft > -3 ? (
+            <div className="max-w-[640px] mx-auto panel flex items-center gap-3 !py-2.5" role="timer" aria-live="off" data-testid="rest-running" style={{ borderColor: restLeft > 0 ? "var(--accent)" : "var(--good)" }}>
+              <span className="font-display text-2xl font-bold num w-16">{restLeft > 0 ? clock(restLeft) : "Go!"}</span>
+              <span className="text-sm flex-1">{restLeft > 0 ? "Rest" : "Rest over. Next set."}</span>
+              {restLeft > 0 && <button className="btn btn-sm" onClick={() => { setRestTotal((t) => t + 30); setRestEnd((r) => (r ?? Date.now()) + 30000); }}>+30s</button>}
+              <button className="btn btn-sm btn-ghost" onClick={() => setRestEnd(null)}>{restLeft > 0 ? "Skip" : "Close"}</button>
+            </div>
+          ) : (
+            <div className="max-w-[640px] mx-auto panel flex items-center gap-2 !py-2" data-testid="rest-idle">
+              <span className="text-sm font-semibold">Rest</span>
+              <input
+                className="input num !py-1 !w-14 text-center no-spin"
+                type="number"
+                min={0}
+                max={30}
+                inputMode="numeric"
+                placeholder="min"
+                aria-label="Rest minutes"
+                value={restMin ?? ""}
+                onChange={(e) => setRestMin(e.target.value === "" ? null : Math.max(0, Math.min(30, Number(e.target.value))))}
+              />
+              <span className="muted">:</span>
+              <input
+                className="input num !py-1 !w-14 text-center no-spin"
+                type="number"
+                min={0}
+                max={59}
+                inputMode="numeric"
+                placeholder="sec"
+                aria-label="Rest seconds"
+                value={restSec ?? ""}
+                onChange={(e) => setRestSec(e.target.value === "" ? null : Math.max(0, Math.min(59, Number(e.target.value))))}
+              />
+              <button
+                className="btn btn-sm btn-primary"
+                disabled={wanted <= 0}
+                title={wanted > 0 ? undefined : "Put a time in first"}
+                onClick={() => {
+                  rememberRest(wanted);
+                  setBuzzed(null);
+                  setRestTotal(wanted);
+                  setRestEnd(Date.now() + wanted * 1000);
+                }}
+              >
+                Start
+              </button>
+              <span className="text-[11.5px] muted flex-1 text-right">{wanted > 0 ? clock(wanted) : "Set how long you want"}</span>
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -386,9 +448,8 @@ function ExerciseCard(props: {
   onRemove: () => void;
   onProgress: () => void;
   onHowTo?: () => void;
-  onSetDone: () => void;
 }) {
-  const { all, workout, ex, label, canGroup, grouped, onGroup, onChange, onRemove, onProgress, onHowTo, onSetDone } = props;
+  const { all, workout, ex, label, canGroup, grouped, onGroup, onChange, onRemove, onProgress, onHowTo } = props;
   const timed = ex.mode === "time";
   const [plates, setPlates] = useState<{ weight: number; bar: number } | null>(null);
   const [running, setRunning] = useState<{ set: number; from: number } | null>(null);
@@ -406,7 +467,6 @@ function ExerciseCard(props: {
       e.sets[i].secs = secs;
       e.sets[i].done = true;
     });
-    onSetDone();
   }
   const key = exerciseKey(ex);
   const prev = previousSets(all, workout, key);
@@ -426,7 +486,6 @@ function ExerciseCard(props: {
       }
       t.done = !t.done;
     });
-    if (!s.done) onSetDone();
   }
 
   return (
