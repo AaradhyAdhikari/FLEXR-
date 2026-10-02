@@ -7,6 +7,7 @@ import { sleepNote, sleepSummary } from "@/lib/sleep";
 import { emptyDay, planForDay, Store } from "@/lib/storage";
 import { DayLog, ExtraItem, Food, Macro } from "@/lib/types";
 import FoodPicker from "./FoodPicker";
+import MealSay from "./MealSay";
 import HealthSync from "./HealthSync";
 import StartHere from "./StartHere";
 import BodyPanel from "./BodyPanel";
@@ -429,6 +430,7 @@ function Extras(props: {
         </div>
       )}
       <FoodPicker mode="log" myFoods={foods} onAdd={onAdd} />
+      <MealSay myFoods={foods} onAdd={onAdd} />
     </div>
   );
 }
