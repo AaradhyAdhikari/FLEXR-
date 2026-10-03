@@ -1,4 +1,4 @@
-import { DayLog, Food, Macro, Meal, Plan } from "./types";
+import { DayLog, Food, Macro, Meal, Plan, Supplement } from "./types";
 
 export const itemKey = (mealId: string, foodId: string) => `${mealId}:${foodId}`;
 
@@ -60,15 +60,43 @@ export function hasData(day: DayLog | undefined): boolean {
     Object.keys(day.eaten || {}).length > 0 ||
     (day.extras || []).length > 0 ||
     (day.water ?? 0) > 0 ||
-    (day.steps ?? 0) > 0
+    (day.steps ?? 0) > 0 ||
+    Object.values(day.doses || {}).some((n) => Number(n) > 0)
   );
+}
+
+/**
+ * Macros from the supplement doses ticked on a day.
+ *
+ * A supplement's numbers are per one dose, so this is multiplication and a sum.
+ * A dose naming a supplement you have since deleted contributes nothing rather
+ * than throwing away the rest of the day.
+ */
+export function doseTotals(day: DayLog, supplements: Record<string, Supplement>): Macro[] {
+  const out: Macro[] = [];
+  for (const [id, count] of Object.entries(day.doses || {})) {
+    const n = Number(count);
+    const s = supplements[id];
+    if (!s || !isFinite(n) || n <= 0) continue;
+    out.push({ kcal: s.kcal * n, p: s.p * n, c: s.c * n, f: s.f * n });
+  }
+  return out;
 }
 
 /**
  * Score a day against its plan.
  * isPast: meals nobody ticked on a past day count as skipped; on today they're still "to eat".
+ *
+ * Supplements count towards the day like anything else eaten — a scoop of whey
+ * is 24 g of protein whether it came from a tub or a plate.
  */
-export function computeDay(day: DayLog, plan: Plan, foods: Record<string, Food>, isPast: boolean): DayResult {
+export function computeDay(
+  day: DayLog,
+  plan: Plan,
+  foods: Record<string, Food>,
+  isPast: boolean,
+  supplements: Record<string, Supplement> = {},
+): DayResult {
   const eaten = day.eaten || {};
   const parts: Macro[] = [];
   const mealState: Record<string, "none" | "some" | "all"> = {};
@@ -86,6 +114,7 @@ export function computeDay(day: DayLog, plan: Plan, foods: Record<string, Food>,
     mealState[m.id] = n === 0 ? "none" : n === m.items.length ? "all" : "some";
   });
   (day.extras || []).forEach((x) => parts.push({ kcal: x.kcal, p: x.p, c: x.c, f: x.f }));
+  parts.push(...doseTotals(day, supplements));
 
   const tot = sumMac(parts);
   const t = plan.targets;

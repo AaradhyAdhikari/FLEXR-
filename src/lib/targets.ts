@@ -125,7 +125,7 @@ export function checkIn(store: Store, s: SmartSettings, currentKcal: number, tod
     const log = store.days[d];
     if (!log) continue;
     if (log.weight && log.weight > 0) weights.push({ x: i, y: log.weight });
-    const r = computeDay(log, planForDay(store, log), store.foods, d < today);
+    const r = computeDay(log, planForDay(store, log), store.foods, d < today, store.supplements);
     const ateSomething = Object.keys(log.eaten || {}).length > 0 || (log.extras || []).length > 0;
     if (ateSomething && d < today && r.kcal > 0) intakes.push(r.kcal); // today isn't finished yet
   }

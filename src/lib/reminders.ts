@@ -232,7 +232,7 @@ export function notifications(r: Reminders, store: Store, today: DayLog | undefi
     }
   };
 
-  const res = today ? computeDay(today, plan, store.foods, false) : null;
+  const res = today ? computeDay(today, plan, store.foods, false, store.supplements) : null;
 
   if (r.items.meals.on) {
     for (const meal of plan.meals) {
@@ -315,6 +315,32 @@ export function notifications(r: Reminders, store: Store, today: DayLog | undefi
       }),
       false
     );
+  }
+
+  /**
+   * Supplements, each on its own schedule.
+   *
+   * `ReminderKey` is a closed set of six nudges the app itself knows about, and
+   * a stack is however many things you happen to take — so these carry their
+   * own time instead of widening that union. `Reminders.on` still silences the
+   * lot, because one switch for everything is the behaviour already there.
+   *
+   * A supplement already ticked today is pushed to tomorrow, same as a meal.
+   */
+  for (const supp of Object.values(store.supplements || {})) {
+    if (!supp.at?.time) continue;
+    const taken = (today?.doses?.[supp.id] ?? 0) >= (supp.perDay > 0 ? supp.perDay : 1);
+    const body = supp.note
+      ? `${supp.perDay > 1 ? `${supp.perDay} ` : ""}${supp.dose}${supp.perDay > 1 ? "s" : ""} — ${supp.note}`
+      : `Time for your ${supp.dose}.`;
+    const days = supp.at.days ?? [];
+    if (!days.length) {
+      add({ key: `stack:${supp.id}`, title: supp.name, body, time: supp.at.time }, taken);
+    } else {
+      for (const w of [...days].sort()) {
+        add({ key: `stack:${supp.id}:${w}`, title: supp.name, body, time: supp.at.time, weekday: w }, taken);
+      }
+    }
   }
 
   return out;

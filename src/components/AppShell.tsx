@@ -12,13 +12,14 @@ import DayView from "./DayView";
 import TrendsView from "./TrendsView";
 import PlanView from "./PlanView";
 import CoachPanel from "./CoachPanel";
+import StackPanel from "./StackPanel";
 import WorkoutsView from "./WorkoutsView";
 import ExercisesView from "./ExercisesView";
 import ProfileSetup from "./ProfileSetup";
 import { OfflineBadge } from "./Offline";
 
-type Tab = "day" | "workouts" | "exercises" | "trends" | "plan" | "coach";
-const TABS: [Tab, string][] = [["day", "Day"], ["workouts", "Workouts"], ["exercises", "Exercises"], ["trends", "Trends"], ["plan", "Plan"], ["coach", "Coach"]];
+type Tab = "day" | "workouts" | "exercises" | "trends" | "plan" | "stack" | "coach";
+const TABS: [Tab, string][] = [["day", "Day"], ["workouts", "Workouts"], ["exercises", "Exercises"], ["trends", "Trends"], ["plan", "Plan"], ["stack", "Stack"], ["coach", "Coach"]];
 type SyncStatus = "local" | "saved" | "saving" | "error" | "needs-update";
 
 /**
@@ -341,6 +342,7 @@ function normalize(s: Store): Store {
     days,
     workouts: s.workouts || {},
     routines: s.routines || {},
+    supplements: s.supplements || {},
     activePlanId: s.activePlanId && plans[s.activePlanId] ? s.activePlanId : Object.keys(plans)[0],
   };
 }
@@ -523,6 +525,7 @@ function Dashboard(props: {
         />
       )}
       {tab === "plan" && <PlanView store={store} update={update} profileAge={age} userId={userId} />}
+      {tab === "stack" && <StackPanel store={store} update={update} sex={store.plans[store.activePlanId]?.smart?.sex ?? null} />}
       {tab === "coach" && <CoachPanel store={store} update={update} />}
     </div>
   );

@@ -3,7 +3,7 @@
 import { supabase } from "./supabase";
 import { defaultStore, Store } from "./storage";
 import { StoreDiff } from "./sync";
-import { DayLog, Food, Plan, Routine, Workout } from "./types";
+import { DayLog, Food, Plan, Routine, Supplement, Workout } from "./types";
 
 export type CloudProfile = { id: string; name: string; age: number; active_plan_id: string | null; created_at: string };
 
@@ -31,26 +31,31 @@ export async function saveProfile(userId: string, name: string, age: number): Pr
  */
 export async function loadCloudStore(activePlanId: string | null): Promise<Store | null> {
   const db = supabase();
-  const [foods, plans, days, workouts, routines] = await Promise.all([
+  const [foods, plans, days, workouts, routines, supplements] = await Promise.all([
     db.from("user_foods").select("id, data"),
     db.from("plans").select("id, data"),
     db.from("day_logs").select("day, data"),
     db.from("workouts").select("id, data"),
     db.from("routines").select("id, data"),
+    db.from("supplements").select("id, data"),
   ]);
   for (const r of [foods, plans, days]) if (r.error) throw r.error;
   // The workouts table arrives with migration 0002; until it's run, carry on without workouts.
   const workoutRows = workouts.error ? [] : workouts.data ?? [];
   // Routines arrive with migration 0003; the app works without them too.
   const routineRows = routines.error ? [] : routines.data ?? [];
+  // Supplements arrive with migration 0004. Same bargain: no table, no Stack,
+  // everything else unaffected.
+  const supplementRows = supplements.error ? [] : supplements.data ?? [];
   if (!foods.data?.length && !plans.data?.length) return null;
 
-  const store: Store = { foods: {}, plans: {}, days: {}, workouts: {}, routines: {}, activePlanId: "" };
+  const store: Store = { foods: {}, plans: {}, days: {}, workouts: {}, routines: {}, supplements: {}, activePlanId: "" };
   for (const row of foods.data ?? []) if (isObj(row.data)) store.foods[row.id] = { ...(row.data as Food), id: row.id };
   for (const row of plans.data ?? []) if (isObj(row.data)) store.plans[row.id] = { ...(row.data as Plan), id: row.id };
   for (const row of days.data ?? []) if (isObj(row.data)) store.days[row.day] = { ...(row.data as DayLog), date: row.day };
   for (const row of workoutRows) if (isObj(row.data)) store.workouts[row.id] = { ...(row.data as Workout), id: row.id };
   for (const row of routineRows) if (isObj(row.data)) store.routines[row.id] = { ...(row.data as Routine), id: row.id };
+  for (const row of supplementRows) if (isObj(row.data)) store.supplements[row.id] = { ...(row.data as Supplement), id: row.id };
 
   if (!Object.keys(store.plans).length) {
     const seed = defaultStore();
@@ -96,6 +101,9 @@ export async function applyDiff(userId: string, d: StoreDiff): Promise<void> {
   if (d.routines.upsert.length)
     w.push(db.from("routines").upsert(d.routines.upsert.map((x) => ({ user_id: userId, id: x.id, data: x }))));
   if (d.routines.remove.length) w.push(db.from("routines").delete().eq("user_id", userId).in("id", d.routines.remove));
+  if (d.supplements.upsert.length)
+    w.push(db.from("supplements").upsert(d.supplements.upsert.map((x) => ({ user_id: userId, id: x.id, data: x }))));
+  if (d.supplements.remove.length) w.push(db.from("supplements").delete().eq("user_id", userId).in("id", d.supplements.remove));
   for (const r of await Promise.all(w)) {
     if (!r.error) continue;
     if (isMissingTable(r.error)) throw new Error(WORKOUTS_TABLE_MISSING);
@@ -105,7 +113,7 @@ export async function applyDiff(userId: string, d: StoreDiff): Promise<void> {
 
 export const WORKOUTS_TABLE_MISSING = "workouts-table-missing";
 const isMissingTable = (e: { code?: string; message?: string }) =>
-  e.code === "PGRST205" || e.code === "42P01" || /relation .*(workouts|routines).* does not exist|could not find the table/i.test(e.message ?? "");
+  e.code === "PGRST205" || e.code === "42P01" || /relation .*(workouts|routines|supplements).* does not exist|could not find the table/i.test(e.message ?? "");
 
 export type LocalImport = {
   store: Store;

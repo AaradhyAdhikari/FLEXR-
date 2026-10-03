@@ -43,7 +43,7 @@ export default function DayView({ store, update, date, setDate, onOpenPlan, go, 
   const saved = store.days[date];
   const day = saved || emptyDay(date, store.activePlanId);
   const plan = planForDay(store, saved);
-  const r = computeDay(day, plan, store.foods, date < today);
+  const r = computeDay(day, plan, store.foods, date < today, store.supplements);
   const grade = gradeOf(r.score);
   const logged = workoutsOn(store.workouts, date);
   const sleep = sleepSummary(store, 7, date);

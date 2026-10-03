@@ -25,7 +25,7 @@ export default function TrendsView({ store, update, range, setRange, openDay }: 
 
   const results: (DayResult | null)[] = days.map((d) => {
     const log = store.days[d];
-    return log ? computeDay(log, planForDay(store, log), store.foods, d < today) : null;
+    return log ? computeDay(log, planForDay(store, log), store.foods, d < today, store.supplements) : null;
   });
   const logged = results.filter((r): r is DayResult => !!r && r.logged);
   const series = (fn: (r: DayResult) => number | null) => results.map((r) => (r && r.logged ? fn(r) : null));

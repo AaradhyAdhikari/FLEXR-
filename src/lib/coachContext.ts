@@ -86,7 +86,7 @@ export function coachContext(store: Store, today: string, days = 14, maxFoods = 
     const date = addDays(today, -i);
     const log = store.days[date];
     if (!log) continue;
-    const res = computeDay(log, planForDay(store, log), store.foods, date < today);
+    const res = computeDay(log, planForDay(store, log), store.foods, date < today, store.supplements);
     if (res.logged) {
       kcal.push(res.kcal);
       protein.push(res.p);

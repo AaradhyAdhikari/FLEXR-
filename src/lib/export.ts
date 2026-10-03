@@ -26,7 +26,7 @@ export function daysCsv(store: Store): string {
     const log = store.days[d];
     if (!log) continue;
     const plan = planForDay(store, log);
-    const res = computeDay(log, plan, store.foods, d < today);
+    const res = computeDay(log, plan, store.foods, d < today, store.supplements);
     const t = plan.targets;
     rows.push([
       d, plan.name, Math.round(res.kcal), Math.round(t.kcal || planTotals(plan, store.foods).kcal),
@@ -98,7 +98,7 @@ export function weekSummary(store: Store, endDate = todayISO()): WeekSummary {
   for (const d of dates) {
     const log = store.days[d];
     if (!log) continue;
-    const res = computeDay(log, planForDay(store, log), store.foods, d < endDate);
+    const res = computeDay(log, planForDay(store, log), store.foods, d < endDate, store.supplements);
     if (res.logged) {
       kcal.push(res.kcal);
       protein.push(res.p);

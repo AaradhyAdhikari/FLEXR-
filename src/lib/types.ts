@@ -88,12 +88,40 @@ export type ExtraItem = {
   cost?: number; // what it cost you, if it cost anything
 };
 
+/**
+ * One supplement, with what a single dose provides.
+ *
+ * Macros and micronutrients are both **per dose**, exactly as the tub prints
+ * them — "per 30 g scoop: 24 g protein" is typed as 24. Nothing is converted
+ * between the label and the app, so there is no arithmetic to get wrong.
+ */
+export type Supplement = {
+  id: string;
+  name: string;
+  /** What one dose is called: "scoop", "tablet", "capsule", "ml". */
+  dose: string;
+  /** Doses a normal day calls for. 1 unless you split them. */
+  perDay: number;
+  kcal: number;
+  p: number;
+  c: number;
+  f: number;
+  /** "with breakfast", "post-workout" — yours, not the app's. */
+  note?: string;
+  /** Micronutrients in one dose, each in the unit micros.ts stores it in. */
+  micros?: import("./micros").MicroDose;
+  /** When to be reminded. Unset = no reminder for this one. */
+  at?: { time: string; days: number[] }; // "HH:MM"; days 0 = Sunday, empty = daily
+};
+
 export type DayLog = {
   date: string; // yyyy-mm-dd
   planId: string;
   plan?: Plan; // snapshot, so editing a plan later doesn't rewrite past days
   eaten: Record<string, number>; // `${mealId}:${foodId}` -> quantity eaten
   extras: ExtraItem[];
+  /** Supplement doses taken today, keyed by supplement id. Absent or 0 = none. */
+  doses?: Record<string, number>;
   water: number | null;
   steps: number | null;
   sleep?: number | null; // hours slept the night before, 1 dp
